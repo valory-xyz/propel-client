@@ -22,14 +22,13 @@ import os
 from pathlib import Path
 from typing import Dict, Optional
 
-FILE_PATH = ".pcli/creds.json"
-CONF_PATH = os.path.expanduser(f"~/{FILE_PATH}")
+from propel_client.constants import CREDENTIALS_FILE_PATH
 
 
 class CredentialStorage:
     """Infile credential storage."""
 
-    CONF_PATH = Path(CONF_PATH)
+    CONF_PATH: Path = CREDENTIALS_FILE_PATH
 
     def _ensure_dir(self) -> None:
         """Make app config dirs if needed."""

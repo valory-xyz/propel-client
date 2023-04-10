@@ -22,6 +22,7 @@ from typing import Dict, Optional
 
 import requests
 
+from propel_client import constants
 from propel_client.cred_storage import CredentialStorage
 
 
@@ -44,9 +45,9 @@ class HttpRequestError(BaseClientError):
 class PropelClient:
     """Propel client."""
 
-    LOGIN_ENDPOINT = "/accounts/login/"
-    LOGOUT_ENDPOINT = "/accounts/logout"
-    OPEMNAI_ENDPOINT = "/openai/"
+    LOGIN_ENDPOINT = constants.LOGIN_ENDPOINT
+    LOGOUT_ENDPOINT = constants.LOGOUT_ENDPOINT
+    OPENAI_ENDPOINT = constants.OPENAI_ENDPOINT
 
     def __init__(self, base_url: str, credentials_storage: CredentialStorage) -> None:
         """
@@ -146,7 +147,7 @@ class PropelClient:
         :raises HttpRequestError: on request errors
         """
         cookies = self._get_cookies()
-        url = self._get_url(self.OPEMNAI_ENDPOINT)
+        url = self._get_url(self.OPENAI_ENDPOINT)
         json_data = {"endpoint_path": path, "payload": payload}
         response = requests.post(url, json=json_data, cookies=cookies)
 

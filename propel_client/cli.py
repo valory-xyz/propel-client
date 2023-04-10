@@ -25,6 +25,7 @@ from typing import Any, Callable, Dict, Optional
 
 import click  # type: ignore
 
+from propel_client.constants import PROPEL_SERVICE_BASE_URL
 from propel_client.cred_storage import CredentialStorage
 from propel_client.propel import LoginError, NoCredentials, PropelClient
 
@@ -33,7 +34,7 @@ url_option = click.option(
     "-U",
     type=str,
     required=False,
-    default="https://app.propel.valory.xyz",
+    default=PROPEL_SERVICE_BASE_URL,
     help="Base url for propel service",
 )
 
