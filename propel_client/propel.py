@@ -44,6 +44,10 @@ class HttpRequestError(BaseClientError):
 class PropelClient:
     """Propel client."""
 
+    LOGIN_ENDPOINT = "/accounts/login/"
+    LOGOUT_ENDPOINT = "/accounts/logout"
+    OPEMNAI_ENDPOINT = "/openai/"
+
     def __init__(self, base_url: str, credentials_storage: CredentialStorage) -> None:
         """
         Init client.
@@ -75,7 +79,7 @@ class PropelClient:
 
         :raises LoginError: if something goes wrong during login process
         """
-        url = self._get_url("/accounts/login/")
+        url = self._get_url(self.LOGIN_ENDPOINT)
         resp = requests.get(url)
         match = re.search(
             r'name="csrfmiddlewaretoken" value="([a-zA-Z0-9]+)">', resp.content.decode()
@@ -125,7 +129,7 @@ class PropelClient:
         :raises HttpRequestError: on request errors
         """
         cookies = self._get_cookies()
-        url = self._get_url("/accounts/logout")
+        url = self._get_url(self.LOGOUT_ENDPOINT)
         response = requests.get(url, cookies=cookies)
         if response.status_code not in [200, 302]:
             raise HttpRequestError(f"Bad status code: {response.status_code}")
@@ -142,7 +146,7 @@ class PropelClient:
         :raises HttpRequestError: on request errors
         """
         cookies = self._get_cookies()
-        url = self._get_url("/openai/")
+        url = self._get_url(self.OPEMNAI_ENDPOINT)
         json_data = {"endpoint_path": path, "payload": payload}
         response = requests.post(url, json=json_data, cookies=cookies)
 

@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "pcli"
+name = "propel"
 version = "v0.0.1"
 description = "Propel OpenAI proxy client"
 authors = ["Yuri Turchenkov <yuri.turchenkov@valory.xyz>"]
@@ -31,4 +31,4 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-pcli = "propel_client:cli.cli"
+propel = "propel_client:cli.cli"
