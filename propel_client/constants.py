@@ -21,8 +21,16 @@
 import os
 from pathlib import Path
 
-LOGIN_ENDPOINT = "/accounts/login/"
-LOGOUT_ENDPOINT = "/accounts/logout"
+# TODO: nested constants for API2
+
+API_PREFIX = "/api2"
+LOGIN_ENDPOINT = f"{API_PREFIX}/token-auth/"
+LOGOUT_ENDPOINT = f"{API_PREFIX}/token-auth/logout"
+KEYS_LIST = f"{API_PREFIX}/keys"
+SEATS_LIST = f"{API_PREFIX}/seats"
+AGENTS_LIST = f"{API_PREFIX}/agents"
+VARIABLES_LIST = f"{API_PREFIX}/variables"
+
 OPENAI_ENDPOINT = "/openai/"
 PROPEL_SERVICE_BASE_URL = "https://app.propel.valory.xyz"
 CREDENTIALS_FILE = ".pcli/creds.json"

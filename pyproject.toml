@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "propel"
+name = "propel_client"
 version = "v0.0.1"
 description = "Propel OpenAI proxy client"
 authors = ["Yuri Turchenkov <yuri.turchenkov@valory.xyz>"]

@@ -17,7 +17,9 @@
 #
 # ------------------------------------------------------------------------------
 """Propel client implementation."""
+import abc
 import re
+import time
 from typing import Dict, Optional
 
 import requests
@@ -45,11 +47,20 @@ class HttpRequestError(BaseClientError):
 class PropelClient:
     """Propel client."""
 
+    # TODO: use nested constants for api2 endpoints
     LOGIN_ENDPOINT = constants.LOGIN_ENDPOINT
     LOGOUT_ENDPOINT = constants.LOGOUT_ENDPOINT
     OPENAI_ENDPOINT = constants.OPENAI_ENDPOINT
+    API_KEYS_LIST = constants.KEYS_LIST
+    API_SEATS_LIST = constants.SEATS_LIST
+    API_AGENTS_LIST = constants.AGENTS_LIST
+    API_VARIABLES_LIST = constants.VARIABLES_LIST
 
-    def __init__(self, base_url: str, credentials_storage: CredentialStorage) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        credentials_storage: CredentialStorage,
+    ) -> None:
         """
         Init client.
 
@@ -81,47 +92,29 @@ class PropelClient:
         :raises LoginError: if something goes wrong during login process
         """
         url = self._get_url(self.LOGIN_ENDPOINT)
-        resp = requests.get(url)
-        match = re.search(
-            r'name="csrfmiddlewaretoken" value="([a-zA-Z0-9]+)">', resp.content.decode()
-        )
-        if not match:
-            raise LoginError("Can not get csrf token.")
-        csrftoken = match.groups()[0]
-
         response = requests.post(
             url,
             data={
                 "username": username,
                 "password": password,
-                "csrfmiddlewaretoken": csrftoken,
             },
-            cookies=resp.cookies,
             allow_redirects=False,
         )
 
-        if response.status_code not in [200, 302]:
-            raise LoginError("Bad service response code")
+        self._check_response(response)
 
-        credentials = requests.utils.dict_from_cookiejar(response.cookies)
-
-        if "sessionid" not in credentials:
-            raise LoginError("Bad username or password?")
-
+        credentials = self._get_credentials_from_response(response)
+        self.credentials_storage.store(credentials)
         return credentials
 
-    def _get_cookies(self) -> requests.cookies.RequestsCookieJar:
-        """
-        Get cookie jar for requests from credentials dict.
+    def _get_credentials_from_response(self, response):
+        return {"Authorization": f"Token {response.json()['token']}"}
 
-        :return: RequestsCookieJar
-        :raises NoCredentials: if no crendetials stored in storage
-        """
+    def _get_credentials_params(self):
         credentials = self.credentials_storage.load()
         if not credentials:
-            raise NoCredentials()
-        jar = requests.utils.cookiejar_from_dict(credentials)
-        return jar
+            raise ValueError("Credentials not specified. please login first")
+        return {"headers": credentials}
 
     def logout(self) -> None:
         """
@@ -129,13 +122,18 @@ class PropelClient:
 
         :raises HttpRequestError: on request errors
         """
-        cookies = self._get_cookies()
         url = self._get_url(self.LOGOUT_ENDPOINT)
-        response = requests.get(url, cookies=cookies)
-        if response.status_code not in [200, 302]:
-            raise HttpRequestError(f"Bad status code: {response.status_code}")
+        response = requests.get(url, **self._get_credentials_params())
+        self._check_response(response)
+        self.credentials_storage.clear()
 
-    def call(self, path: str, payload: Optional[Dict] = None) -> str:
+    def _check_response(self, response, codes=[200]):
+        if response.status_code not in codes:
+            raise HttpRequestError(
+                f"Bad status code: {response.status_code}. Content: {response.content}"
+            )
+
+    def openai(self, path: str, payload: Optional[Dict] = None) -> str:
         """
         Make openai call.
 
@@ -146,12 +144,93 @@ class PropelClient:
 
         :raises HttpRequestError: on request errors
         """
-        cookies = self._get_cookies()
         url = self._get_url(self.OPENAI_ENDPOINT)
         json_data = {"endpoint_path": path, "payload": payload}
-        response = requests.post(url, json=json_data, cookies=cookies)
-
-        if response.status_code != 200:
-            raise HttpRequestError(f"Bad status code: {response.status_code}")
+        response = requests.post(url, json=json_data, **self._get_credentials_params())
+        self._check_response(response)
 
         return response.content.decode()
+
+    def keys_list(self):
+        url = self._get_url(self.API_KEYS_LIST)
+        response = requests.get(url, **self._get_credentials_params())
+        self._check_response(response)
+        return response.json()
+
+    def get_seats(self):
+        url = self._get_url(self.API_SEATS_LIST)
+        response = requests.get(url, **self._get_credentials_params())
+        self._check_response(response)
+        return response.json()
+
+    def agents_list(self):
+        url = self._get_url(self.API_AGENTS_LIST)
+        response = requests.get(url, **self._get_credentials_params())
+        self._check_response(response)
+        return response.json()
+
+    def agents_get(self, agent_name_or_id):
+        url = self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}"
+        response = requests.get(url, **self._get_credentials_params())
+        self._check_response(response)
+        return response.json()
+
+    def agents_restart(self, agent_name_or_id):
+        url = self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}/restart"
+        response = requests.get(url, **self._get_credentials_params())
+        self._check_response(response)
+        return response.json()
+
+    def agents_stop(self, agent_name_or_id):
+        url = self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}/stop"
+        response = requests.get(url, **self._get_credentials_params())
+        self._check_response(response)
+        return response.json()
+
+    def agents_delete(self, agent_name_or_id):
+        url = self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}/delete"
+        response = requests.get(url, **self._get_credentials_params())
+        self._check_response(response)
+        return response.json()
+
+    def agents_create(self, agent_data):
+        url = self._get_url(self.API_AGENTS_LIST) + "/"
+        response = requests.post(url, json=agent_data, **self._get_credentials_params())
+        self._check_response(response, codes=[201])
+        return response.json()
+
+    def variables_list(self):
+        url = self._get_url(self.API_VARIABLES_LIST) + "/"
+        response = requests.get(url, **self._get_credentials_params())
+        self._check_response(response, codes=[200])
+        return response.json()
+
+    def variables_create(self, name: str, key: str, value: str, type_: str = "str"):
+        url = self._get_url(self.API_VARIABLES_LIST) + "/"
+        variable_data = {
+            "name": name,
+            "key": key,
+            "masked_value": value,
+            "var_type": type_,
+        }
+        response = requests.post(
+            url, json=variable_data, **self._get_credentials_params()
+        )
+        self._check_response(response, codes=[201])
+        return response.json()
+
+    def agents_wait_for_status(
+        self,
+        agent_name_or_id: int | str,
+        state: int,
+        timeout: int = 120,
+        period: int = 3,
+    ):
+        start = time.time()
+        while time.time() - start < timeout:
+            agent_data = self.agents_get(agent_name_or_id=agent_name_or_id)
+            if agent_data["agent_state"] == state:
+                return True
+            time.sleep(period)
+
+        raise TimeoutError()

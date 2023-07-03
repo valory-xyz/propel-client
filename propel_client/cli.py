@@ -49,7 +49,6 @@ class ClickAPPObject:
     def logout(self) -> None:
         """Perform logout."""
         self.propel_client.logout()
-        self.storage.clear()
 
     def login(self, username: str, password: str) -> None:
         """
@@ -59,9 +58,8 @@ class ClickAPPObject:
         :param password: password string
         """
         creds = self.propel_client.login(username, password)
-        self.storage.store(creds)
 
-    def call(self, path: str, payload: Optional[Dict] = None) -> str:
+    def openai(self, path: str, payload: Optional[Dict] = None) -> str:
         """
         Make openai call.
 
@@ -70,7 +68,7 @@ class ClickAPPObject:
 
         :return: json string
         """
-        return self.propel_client.call(path, payload)
+        return self.propel_client.openai(path, payload)
 
 
 @click.group()
@@ -173,7 +171,7 @@ def call(obj: ClickAPPObject, path: str, payload: Optional[str] = None) -> None:
             payload_data = json.loads(payload)
         except Exception as exc:  # pylint: disable=broad-except
             raise click.ClickException("payload not a valid json!") from exc
-    result = obj.call(path, payload_data)
+    result = obj.openai(path, payload_data)
     result = json.dumps(json.loads(result), indent=4)
     click.echo(result)
 
