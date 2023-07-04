@@ -153,7 +153,7 @@ def logout(obj: ClickAPPObject) -> None:
 @click.argument("path", type=str, required=True)
 @click.argument("payload", type=str, required=False, default=None)
 @no_credentials_error
-def call(obj: ClickAPPObject, path: str, payload: Optional[str] = None) -> None:
+def openai(obj: ClickAPPObject, path: str, payload: Optional[str] = None) -> None:
     """
     Perform openai call cli command and print out result.
 
@@ -178,4 +178,4 @@ def call(obj: ClickAPPObject, path: str, payload: Optional[str] = None) -> None:
 
 cli.add_command(login)
 cli.add_command(logout)
-cli.add_command(call)
+cli.add_command(openai)

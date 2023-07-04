@@ -113,7 +113,7 @@ class PropelClient:
     def _get_credentials_params(self):
         credentials = self.credentials_storage.load()
         if not credentials:
-            raise ValueError("Credentials not specified. please login first")
+            raise NoCredentials("Credentials not specified. please login first")
         return {"headers": credentials}
 
     def logout(self) -> None:

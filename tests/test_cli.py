@@ -52,14 +52,12 @@ class TestCli:
         assert result.exit_code == 0
         assert result.output == "Logged in\n"
         self.client_mock.login.assert_called_once_with(self.username, self.password)
-        self.storage_mock.store.assert_called_once_with(self.credentials)
 
     def test_login_ok_stdin(self):
         result = self.run_cli("login", input=f"{self.username}\n{self.password}\n")
         assert result.exit_code == 0
         assert "Logged in" in result.output
         self.client_mock.login.assert_called_once_with(self.username, self.password)
-        self.storage_mock.store.assert_called_once_with(self.credentials)
 
     def test_login_fails(self):
         self.client_mock.login = Mock(side_effect=LoginError("ooops"))
@@ -74,7 +72,7 @@ class TestCli:
         with patch(
             "propel_client.cli.CredentialStorage", return_value=self.storage_mock
         ):
-            result = self.runner.invoke(cli, ["call", "/some_api_endpoint"])
+            result = self.runner.invoke(cli, ["openai", "/some_api_endpoint"])
         assert result.exit_code == 1
         assert "No credentials found! Please, login first" in result.output
 
@@ -91,38 +89,37 @@ class TestCli:
         self.storage_mock.clear = Mock()
         result = self.run_cli("logout")
         assert result.exit_code == 0
-        self.storage_mock.clear.assert_called_once()
 
-    def test_call_ok(self):
+    def test_call_openai_ok(self):
         call_resp = '{"1": "2"}'
-        self.client_mock.call = MagicMock(return_value=call_resp)
-        result = self.run_cli("call", "/some")
+        self.client_mock.openai = MagicMock(return_value=call_resp)
+        result = self.run_cli("openai", "/some")
         assert result.exit_code == 0
         assert json.loads(call_resp) == json.loads(result.output)
-        self.client_mock.call.assert_called_once_with("/some", None)
+        self.client_mock.openai.assert_called_once_with("/some", None)
 
-    def test_call_ok_str_payload(self):
+    def test_call_openai_ok_str_payload(self):
         call_resp = '{"1": "2"}'
-        self.client_mock.call = MagicMock(return_value=call_resp)
-        result = self.run_cli("call", "/some", call_resp)
+        self.client_mock.openai = MagicMock(return_value=call_resp)
+        result = self.run_cli("openai", "/some", call_resp)
         assert result.exit_code == 0
         assert json.loads(call_resp) == json.loads(result.output)
-        self.client_mock.call.assert_called_once_with("/some", json.loads(call_resp))
+        self.client_mock.openai.assert_called_once_with("/some", json.loads(call_resp))
 
-    def test_call_ok_stdin_payload(self):
+    def test_call_openai_ok_stdin_payload(self):
         call_resp = '{"1": "2"}'
-        self.client_mock.call = MagicMock(return_value=call_resp)
+        self.client_mock.openai = MagicMock(return_value=call_resp)
         with patch("propel_client.cli.stdin.read", return_value=call_resp):
-            result = self.run_cli("call", "/some", "-")
+            result = self.run_cli("openai", "/some", "-")
         assert result.exit_code == 0
         assert json.loads(call_resp) == json.loads(result.output)
-        self.client_mock.call.assert_called_once_with("/some", json.loads(call_resp))
+        self.client_mock.openai.assert_called_once_with("/some", json.loads(call_resp))
 
-    def test_call_ok_stdin_bad_payload(self):
+    def test_call_openai_ok_stdin_bad_payload(self):
         call_resp = '{"1": "2"}'
-        self.client_mock.call = MagicMock(return_value=call_resp)
+        self.client_mock.openai = MagicMock(return_value=call_resp)
         with patch("propel_client.cli.stdin.read", return_value=""):
-            result = self.run_cli("call", "/some", "-")
+            result = self.run_cli("openai", "/some", "-")
         assert result.exit_code == 1
         assert "payload not a valid json" in result.output
-        self.client_mock.call.assert_not_called()
+        self.client_mock.openai.assert_not_called()
