@@ -25,7 +25,7 @@ from typing import Any, Callable, Dict, Optional
 
 import click  # type: ignore
 
-from propel_client.constants import PROPEL_SERVICE_BASE_URL
+from propel_client.constants import PROPEL_SERVICE_BASE_URL, VAR_TYPES
 from propel_client.cred_storage import CredentialStorage
 from propel_client.propel import LoginError, NoCredentials, PropelClient
 
@@ -179,3 +179,165 @@ def openai(obj: ClickAPPObject, path: str, payload: Optional[str] = None) -> Non
 cli.add_command(login)
 cli.add_command(logout)
 cli.add_command(openai)
+
+
+@click.group()
+@click.pass_obj
+def keys(obj: ClickAPPObject):
+    pass
+
+
+@click.command(name="list")
+@click.pass_obj
+def keys_list(obj: ClickAPPObject):
+    keys = obj.propel_client.keys_list()
+    print_json(keys)
+
+
+keys.add_command(keys_list)
+cli.add_command(keys)
+
+
+@click.group()
+@click.pass_obj
+def seats(obj: ClickAPPObject):
+    pass
+
+
+@click.command(name="ensure")
+@click.pass_obj
+def seats_ensure(obj: ClickAPPObject):
+    seats = obj.propel_client.get_seats()
+    if seats["n_available"] < 1:
+        raise click.ClickException("No seats")
+
+    click.echo(f"Seats are ok: {seats['n_available']}")
+
+
+seats.add_command(seats_ensure)
+cli.add_command(seats)
+
+
+@click.group()
+@click.pass_obj
+def agents(obj: ClickAPPObject):
+    pass
+
+
+@click.command(name="list")
+@click.pass_obj
+def agents_list(obj: ClickAPPObject):
+    agents = obj.propel_client.agents_list()
+    print_json(agents)
+
+
+@click.command(name="create")
+@click.pass_obj
+@click.option("--key", type=str, required=True)
+@click.option("--name", type=str, required=False)
+@click.option("--service-ipfs-hash", type=str, required=False)
+@click.option("--variables", type=str, required=False)
+@click.option("--chain-id", type=int, required=False)
+@click.option("--token-id", type=int, required=False)
+@click.option("--ingress-enabled", type=bool, required=False, default=False)
+@click.option("--tendermint-ingress-enabled", type=bool, required=False, default=False)
+
+def agents_create(
+    obj: ClickAPPObject,
+    key,
+    name,
+    variables,
+    chain_id,
+    token_id,
+    ingress_enabled,
+    service_ipfs_hash,
+    tendermint_ingress_enabled
+):
+    if variables:
+        variables = variables.split(",") or None
+    agent = obj.propel_client.agents_create2(
+        key=key,
+        name=name,
+        service_ipfs_hash=service_ipfs_hash,
+        chain_id=chain_id,
+        token_id=token_id,
+        ingress_enabled=ingress_enabled,
+        variables=variables,
+        tendermint_ingress_enabled=tendermint_ingress_enabled
+    )
+    print_json(agent)
+
+
+@click.command(name="get")
+@click.pass_obj
+@click.argument("name_or_id", type=str, required=True)
+def agents_get(obj: ClickAPPObject, name_or_id: str):
+    agent = obj.propel_client.agents_get(name_or_id)
+    print_json(agent)
+
+
+@click.command(name="restart")
+@click.pass_obj
+@click.argument("name_or_id", type=str, required=True)
+def agents_restart(obj: ClickAPPObject, name_or_id: str):
+    agent = obj.propel_client.agents_restart(name_or_id)
+    print_json(agent)
+
+
+@click.command(name="stop")
+@click.pass_obj
+@click.argument("name_or_id", type=str, required=True)
+def agents_stop(obj: ClickAPPObject, name_or_id: str):
+    agent = obj.propel_client.agents_stop(name_or_id)
+    print_json(agent)
+
+
+@click.command(name="delete")
+@click.pass_obj
+@click.argument("name_or_id", type=str, required=True)
+def agents_delete(obj: ClickAPPObject, name_or_id: str):
+    agent = obj.propel_client.agents_delete(name_or_id)
+    print_json(agent)
+
+
+agents.add_command(agents_list)
+agents.add_command(agents_create)
+agents.add_command(agents_get)
+agents.add_command(agents_restart)
+agents.add_command(agents_stop)
+agents.add_command(agents_delete)
+cli.add_command(agents)
+
+
+@click.group()
+@click.pass_obj
+def variables(obj: ClickAPPObject):
+    pass
+
+
+@click.command(name="list")
+@click.pass_obj
+def variables_list(obj: ClickAPPObject):
+    variables = obj.propel_client.variables_list()
+    print_json(variables)
+
+
+@click.command(name="create")
+@click.pass_obj
+@click.argument("name", type=str, required=True)
+@click.argument("key", type=str, required=True)
+@click.argument("value", type=str, required=True)
+@click.argument("var_type", type=click.Choice(VAR_TYPES), required=False, default="str")
+def variables_create(obj: ClickAPPObject, name, key, value, var_type):
+    variable = obj.propel_client.variables_create(name, key, value, var_type)
+    print_json(variable)
+
+
+variables.add_command(variables_create)
+variables.add_command(variables_list)
+cli.add_command(variables)
+
+
+def print_json(data):
+    result = json.dumps(data, indent=4)
+    print(result)

@@ -35,3 +35,6 @@ OPENAI_ENDPOINT = "/openai/"
 PROPEL_SERVICE_BASE_URL = "https://app.propel.valory.xyz"
 CREDENTIALS_FILE = ".pcli/creds.json"
 CREDENTIALS_FILE_PATH = Path(os.path.expanduser(f"~/{CREDENTIALS_FILE}"))
+
+
+VAR_TYPES = ["str", "int", "bool", "float", "dict", "list", "none"]

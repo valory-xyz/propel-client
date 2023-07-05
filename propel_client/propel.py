@@ -20,7 +20,7 @@
 import abc
 import re
 import time
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import requests
 
@@ -99,6 +99,7 @@ class PropelClient:
                 "password": password,
             },
             allow_redirects=False,
+            verify=False,
         )
 
         self._check_response(response)
@@ -114,7 +115,7 @@ class PropelClient:
         credentials = self.credentials_storage.load()
         if not credentials:
             raise NoCredentials("Credentials not specified. please login first")
-        return {"headers": credentials}
+        return {"headers": credentials, "verify": False}
 
     def logout(self) -> None:
         """
@@ -198,6 +199,35 @@ class PropelClient:
         response = requests.post(url, json=agent_data, **self._get_credentials_params())
         self._check_response(response, codes=[201])
         return response.json()
+
+    def agents_create2(
+        self,
+        key: str,
+        name: Optional[str] = None,
+        service_ipfs_hash: Optional[str] = None,
+        chain_id: Optional[int] = None,
+        token_id: Optional[int] = None,
+        ingress_enabled: bool = False,
+        variables: Optional[List[str]] = None,
+        tendermint_ingress_enabled: bool = False,
+    ):
+        agent_data = {"key": key}
+
+        vars = [
+            "name",
+            "service_ipfs_hash",
+            "chain_id",
+            "token_id",
+            "ingress_enabled",
+            "variables",
+            "tendermint_ingress_enabled",
+        ]
+
+        for var in vars:
+            if locals()[var]:
+                agent_data[var] = locals()[var]
+
+        return self.agents_create(agent_data)
 
     def variables_list(self):
         url = self._get_url(self.API_VARIABLES_LIST) + "/"
