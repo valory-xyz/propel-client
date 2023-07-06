@@ -43,6 +43,11 @@ class LoginError(BaseClientError):
 class HttpRequestError(BaseClientError):
     """Bad http request response."""
 
+    def __init__(self, message, code=None, content=None, *args: object) -> None:
+        self.code = code
+        self.content = content
+        super().__init__(message, *args)
+
 
 class PropelClient:
     """Propel client."""
@@ -131,7 +136,9 @@ class PropelClient:
     def _check_response(self, response, codes=[200]):
         if response.status_code not in codes:
             raise HttpRequestError(
-                f"Bad status code: {response.status_code}. Content: {response.content}"
+                f"Bad status code: {response.status_code}. Content: {response.content}",
+                code=response.status_code,
+                content=response.content,
             )
 
     def openai(self, path: str, payload: Optional[Dict] = None) -> str:
@@ -249,18 +256,41 @@ class PropelClient:
         self._check_response(response, codes=[201])
         return response.json()
 
-    def agents_wait_for_status(
+    def agents_wait_for_state(
         self,
         agent_name_or_id: int | str,
-        state: int,
+        state: str,
         timeout: int = 120,
         period: int = 3,
     ):
         start = time.time()
         while time.time() - start < timeout:
-            agent_data = self.agents_get(agent_name_or_id=agent_name_or_id)
-            if agent_data["agent_state"] == state:
-                return True
+            try:
+                agent_data = self.agents_get(agent_name_or_id=agent_name_or_id)
+                if agent_data["agent_state"] == state:
+                    return True
+                time.sleep(period)
+            except requests.exceptions.ConnectionError:
+                pass
+
+        raise TimeoutError()
+
+    def agents_wait_for_state_iter(
+        self,
+        agent_name_or_id: int | str,
+        state: str,
+        timeout: int = 120,
+        period: int = 3,
+    ):
+        start = time.time()
+        while time.time() - start < timeout:
+            try:
+                agent_data = self.agents_get(agent_name_or_id=agent_name_or_id)
+                yield agent_data["agent_state"]
+                if agent_data["agent_state"] == state:
+                    return True
+            except requests.exceptions.ConnectionError:
+                pass
             time.sleep(period)
 
         raise TimeoutError()

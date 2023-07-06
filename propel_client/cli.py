@@ -21,13 +21,14 @@ import json
 from dataclasses import dataclass
 from functools import wraps
 from sys import stdin
+import time
 from typing import Any, Callable, Dict, Optional
 
 import click  # type: ignore
 
 from propel_client.constants import PROPEL_SERVICE_BASE_URL, VAR_TYPES
 from propel_client.cred_storage import CredentialStorage
-from propel_client.propel import LoginError, NoCredentials, PropelClient
+from propel_client.propel import HttpRequestError, LoginError, NoCredentials, PropelClient
 
 url_option = click.option(
     "--url",
@@ -241,7 +242,6 @@ def agents_list(obj: ClickAPPObject):
 @click.option("--token-id", type=int, required=False)
 @click.option("--ingress-enabled", type=bool, required=False, default=False)
 @click.option("--tendermint-ingress-enabled", type=bool, required=False, default=False)
-
 def agents_create(
     obj: ClickAPPObject,
     key,
@@ -251,7 +251,7 @@ def agents_create(
     token_id,
     ingress_enabled,
     service_ipfs_hash,
-    tendermint_ingress_enabled
+    tendermint_ingress_enabled,
 ):
     if variables:
         variables = variables.split(",") or None
@@ -263,7 +263,7 @@ def agents_create(
         token_id=token_id,
         ingress_enabled=ingress_enabled,
         variables=variables,
-        tendermint_ingress_enabled=tendermint_ingress_enabled
+        tendermint_ingress_enabled=tendermint_ingress_enabled,
     )
     print_json(agent)
 
@@ -274,6 +274,58 @@ def agents_create(
 def agents_get(obj: ClickAPPObject, name_or_id: str):
     agent = obj.propel_client.agents_get(name_or_id)
     print_json(agent)
+
+
+@click.command(name="wait")
+@click.pass_obj
+@click.argument("name_or_id", type=str, required=True)
+@click.argument("state", type=str, required=True)
+@click.option("--timeout", type=int, required=False, default=120)
+def agents_wait(obj: ClickAPPObject, name_or_id: str, state: str, timeout: int):
+    try:
+        for state in obj.propel_client.agents_wait_for_state_iter(
+            agent_name_or_id=name_or_id, state=state, timeout=timeout
+        ):
+            print("STATE:", state)
+    except TimeoutError:
+        raise click.ClickException(f"Timeout during wait for state: {state}")
+
+
+@click.command(name="ensure-deleted")
+@click.pass_obj
+@click.argument("name_or_id", type=str, required=True)
+@click.option("--timeout", type=int, required=False, default=120)
+def agents_ensure_deleted(obj: ClickAPPObject, name_or_id: str, timeout: int):
+    if _is_deleted(obj.propel_client, name_or_id):
+        print("already deleted")
+        return
+    
+    obj.propel_client.agents_stop(name_or_id)
+    # TODO: add state constants!
+    started = time.time()
+    obj.propel_client.agents_wait_for_state(name_or_id, 'DEPLOYED', timeout=timeout)
+    
+    obj.propel_client.agents_delete(name_or_id)
+    while 1:
+        if _is_deleted(obj.propel_client, name_or_id):
+            break
+        
+        if (time.time() - started ) < timeout:
+            raise click.ClickException("timeout!")
+        time.sleep(3)
+
+    click.echo("Agent was deleted")
+
+
+def _is_deleted(client: PropelClient, name_or_id: str):
+    try:
+        client.agents_get(name_or_id)
+        return False
+    except HttpRequestError as e:
+        if e.code == 404 and e.content == b'{"detail":"Not found."}':
+            return True
+        raise ValueError(f"Bad response from server: {e}") from e
+        
 
 
 @click.command(name="restart")
@@ -303,9 +355,11 @@ def agents_delete(obj: ClickAPPObject, name_or_id: str):
 agents.add_command(agents_list)
 agents.add_command(agents_create)
 agents.add_command(agents_get)
+agents.add_command(agents_wait)
 agents.add_command(agents_restart)
 agents.add_command(agents_stop)
 agents.add_command(agents_delete)
+agents.add_command(agents_ensure_deleted)
 cli.add_command(agents)
 
 
