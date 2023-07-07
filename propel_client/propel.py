@@ -165,6 +165,12 @@ class PropelClient:
         self._check_response(response)
         return response.json()
 
+    def keys_create(self):
+        url = self._get_url(self.API_KEYS_LIST) + "/"
+        response = requests.post(url, **self._get_credentials_params())
+        self._check_response(response, codes=[201])
+        return response.json()
+
     def get_seats(self):
         url = self._get_url(self.API_SEATS_LIST)
         response = requests.get(url, **self._get_credentials_params())
