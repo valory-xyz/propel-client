@@ -18,10 +18,10 @@
 # ------------------------------------------------------------------------------
 """CLI implementation."""
 import json
+import time
 from dataclasses import dataclass
 from functools import wraps
 from sys import stdin
-import time
 from typing import Any, Callable, Dict, Optional
 
 import click  # type: ignore
@@ -34,6 +34,7 @@ from propel_client.propel import (
     NoCredentials,
     PropelClient,
 )
+
 
 url_option = click.option(
     "--url",
@@ -63,7 +64,7 @@ class ClickAPPObject:
         :param username: username string
         :param password: password string
         """
-        creds = self.propel_client.login(username, password)
+        self.propel_client.login(username, password)
 
     def openai(self, path: str, payload: Optional[Dict] = None) -> str:
         """
@@ -189,38 +190,63 @@ cli.add_command(openai)
 
 @click.group()
 @click.pass_obj
-def keys(obj: ClickAPPObject):
-    pass
+def keys_group(obj: ClickAPPObject) -> None:
+    """
+    Group keys commands.
+
+    :param obj: ClickAPPObject
+    """
+    del obj
 
 
 @click.command(name="list")
 @click.pass_obj
-def keys_list(obj: ClickAPPObject):
+def keys_list(obj: ClickAPPObject) -> None:
+    """
+    List keys command.
+
+    :param obj: ClickAPPObject
+    """
     keys = obj.propel_client.keys_list()
     print_json(keys)
 
 
 @click.command(name="create")
 @click.pass_obj
-def keys_create(obj: ClickAPPObject):
+def keys_create(obj: ClickAPPObject) -> None:
+    """
+    Create keys command.
+
+    :param obj: ClickAPPObject
+    """
     keys = obj.propel_client.keys_list()
     print_json(keys)
 
 
-keys.add_command(keys_list)
-keys.add_command(keys_create)
-cli.add_command(keys)
+keys_group.add_command(keys_list)
+keys_group.add_command(keys_create)
+cli.add_command(keys_group)
 
 
 @click.group()
 @click.pass_obj
-def seats(obj: ClickAPPObject):
-    pass
+def seats_group(obj: ClickAPPObject) -> None:
+    """
+    Group seat commands.
+
+    :param obj: ClickAPPObject
+    """
+    del obj
 
 
 @click.command(name="ensure")
 @click.pass_obj
-def seats_ensure(obj: ClickAPPObject):
+def seats_ensure(obj: ClickAPPObject) -> None:
+    """
+    Ensure seats command.
+
+    :param obj: ClickAPPObject
+    """
     seats = obj.propel_client.get_seats()
     if seats["n_available"] < 1:
         raise click.ClickException("No seats")
@@ -228,26 +254,36 @@ def seats_ensure(obj: ClickAPPObject):
     click.echo(f"Seats are ok: {seats['n_available']}")
 
 
-seats.add_command(seats_ensure)
-cli.add_command(seats)
+seats_group.add_command(seats_ensure)
+cli.add_command(seats_group)
 
 
 @click.group()
 @click.pass_obj
-def agents(obj: ClickAPPObject):
-    pass
+def agents_group(obj: ClickAPPObject) -> None:
+    """
+    Group agents commands.
+
+    :param obj: ClickAPPObject
+    """
+    del obj
 
 
 @click.command(name="list")
 @click.pass_obj
-def agents_list(obj: ClickAPPObject):
+def agents_list(obj: ClickAPPObject) -> None:
+    """
+    List agents command.
+
+    :param obj: ClickAPPObject
+    """
     agents = obj.propel_client.agents_list()
     print_json(agents)
 
 
 @click.command(name="create")
 @click.pass_obj
-@click.option("--key", type=str, required=True)
+@click.option("--key", type=int, required=True)
 @click.option("--name", type=str, required=False)
 @click.option("--service-ipfs-hash", type=str, required=False)
 @click.option("--variables", type=str, required=False)
@@ -255,27 +291,39 @@ def agents_list(obj: ClickAPPObject):
 @click.option("--token-id", type=int, required=False)
 @click.option("--ingress-enabled", type=bool, required=False, default=False)
 @click.option("--tendermint-ingress-enabled", type=bool, required=False, default=False)
-def agents_create(
+def agents_create(  # pylint: disable=too-many-arguments
     obj: ClickAPPObject,
-    key,
-    name,
-    variables,
-    chain_id,
-    token_id,
-    ingress_enabled,
-    service_ipfs_hash,
-    tendermint_ingress_enabled,
-):
-    if variables:
-        variables = variables.split(",") or None
-    agent = obj.propel_client.agents_create2(
+    key: int,
+    name: str,
+    variables: str,
+    chain_id: int,
+    token_id: int,
+    ingress_enabled: bool,
+    service_ipfs_hash: str,
+    tendermint_ingress_enabled: bool,
+) -> None:
+    """
+    Create agent command.
+
+    :param obj: ClickAPPObject
+    :param key: key id
+    :param name: optional agent name
+    :param service_ipfs_hash: optional service ipfs hash id
+    :param chain_id: optional chain id
+    :param token_id: optional token id
+    :param ingress_enabled: option bool
+    :param variables: optional str
+    :param tendermint_ingress_enabled: optional bool
+    """
+    variables_list = variables.split(",") or None if variables else []
+    agent = obj.propel_client.agents_create(
         key=key,
         name=name,
         service_ipfs_hash=service_ipfs_hash,
         chain_id=chain_id,
         token_id=token_id,
         ingress_enabled=ingress_enabled,
-        variables=variables,
+        variables=variables_list,
         tendermint_ingress_enabled=tendermint_ingress_enabled,
     )
     print_json(agent)
@@ -284,7 +332,14 @@ def agents_create(
 @click.command(name="get")
 @click.pass_obj
 @click.argument("name_or_id", type=str, required=True)
-def agents_get(obj: ClickAPPObject, name_or_id: str):
+def agents_get(obj: ClickAPPObject, name_or_id: str) -> None:
+    """
+    Get agent command.
+
+    :param name_or_id: str
+
+    :param obj: ClickAPPObject
+    """
     agent = obj.propel_client.agents_get(name_or_id)
     print_json(agent)
 
@@ -294,27 +349,43 @@ def agents_get(obj: ClickAPPObject, name_or_id: str):
 @click.argument("name_or_id", type=str, required=True)
 @click.argument("state", type=str, required=True)
 @click.option("--timeout", type=int, required=False, default=120)
-def agents_wait(obj: ClickAPPObject, name_or_id: str, state: str, timeout: int):
+def agents_wait(obj: ClickAPPObject, name_or_id: str, state: str, timeout: int) -> None:
+    """
+    Wait agent command.
+
+    :param obj: ClickAPPObject
+    :param name_or_id: str
+    :param state: str
+    :param timeout: int
+    """
     try:
-        for state in obj.propel_client.agents_wait_for_state_iter(
+        for cur_state in obj.propel_client.agents_wait_for_state_iter(
             agent_name_or_id=name_or_id, state=state, timeout=timeout
         ):
-            print("STATE:", state)
-    except TimeoutError:
-        raise click.ClickException(f"Timeout during wait for state: {state}")
+            print("STATE:", cur_state)
+    except TimeoutError as e:
+        raise click.ClickException(f"Timeout during wait for state: {state}") from e
 
 
 @click.command(name="ensure-deleted")
 @click.pass_obj
 @click.argument("name_or_id", type=str, required=True)
 @click.option("--timeout", type=int, required=False, default=120)
-def agents_ensure_deleted(obj: ClickAPPObject, name_or_id: str, timeout: int):
+def agents_ensure_deleted(obj: ClickAPPObject, name_or_id: str, timeout: int) -> None:
+    """
+    Ensure agfent deleted command.
+
+    :param name_or_id: str
+    :param timeout: int
+
+    :param obj: ClickAPPObject
+    """
     if _is_deleted(obj.propel_client, name_or_id):
         print("already deleted")
         return
 
     obj.propel_client.agents_stop(name_or_id)
-    # TODO: add state constants!
+    # TODO: add state constants! # pylint: disable=fixme
     started = time.time()
     obj.propel_client.agents_wait_for_state(name_or_id, "DEPLOYED", timeout=timeout)
 
@@ -330,7 +401,15 @@ def agents_ensure_deleted(obj: ClickAPPObject, name_or_id: str, timeout: int):
     click.echo("Agent was deleted")
 
 
-def _is_deleted(client: PropelClient, name_or_id: str):
+def _is_deleted(client: PropelClient, name_or_id: str) -> bool:
+    """
+    Check if agent deleted helper.
+
+    :param client: PropelClient instance
+    :param name_or_id: str
+
+    :return: bool
+    """
     try:
         client.agents_get(name_or_id)
         return False
@@ -343,7 +422,13 @@ def _is_deleted(client: PropelClient, name_or_id: str):
 @click.command(name="restart")
 @click.pass_obj
 @click.argument("name_or_id", type=str, required=True)
-def agents_restart(obj: ClickAPPObject, name_or_id: str):
+def agents_restart(obj: ClickAPPObject, name_or_id: str) -> None:
+    """
+    Restart agent command.
+
+    :param name_or_id: str
+    :param obj: ClickAPPObject
+    """
     agent = obj.propel_client.agents_restart(name_or_id)
     print_json(agent)
 
@@ -351,7 +436,13 @@ def agents_restart(obj: ClickAPPObject, name_or_id: str):
 @click.command(name="stop")
 @click.pass_obj
 @click.argument("name_or_id", type=str, required=True)
-def agents_stop(obj: ClickAPPObject, name_or_id: str):
+def agents_stop(obj: ClickAPPObject, name_or_id: str) -> None:
+    """
+    Stop agent command.
+
+    :param name_or_id: str
+    :param obj: ClickAPPObject
+    """
     agent = obj.propel_client.agents_stop(name_or_id)
     print_json(agent)
 
@@ -359,31 +450,47 @@ def agents_stop(obj: ClickAPPObject, name_or_id: str):
 @click.command(name="delete")
 @click.pass_obj
 @click.argument("name_or_id", type=str, required=True)
-def agents_delete(obj: ClickAPPObject, name_or_id: str):
+def agents_delete(obj: ClickAPPObject, name_or_id: str) -> None:
+    """
+    Delete agent command.
+
+    :param name_or_id: str
+    :param obj: ClickAPPObject
+    """
     agent = obj.propel_client.agents_delete(name_or_id)
     print_json(agent)
 
 
-agents.add_command(agents_list)
-agents.add_command(agents_create)
-agents.add_command(agents_get)
-agents.add_command(agents_wait)
-agents.add_command(agents_restart)
-agents.add_command(agents_stop)
-agents.add_command(agents_delete)
-agents.add_command(agents_ensure_deleted)
-cli.add_command(agents)
+agents_group.add_command(agents_list)
+agents_group.add_command(agents_create)
+agents_group.add_command(agents_get)
+agents_group.add_command(agents_wait)
+agents_group.add_command(agents_restart)
+agents_group.add_command(agents_stop)
+agents_group.add_command(agents_delete)
+agents_group.add_command(agents_ensure_deleted)
+cli.add_command(agents_group)
 
 
 @click.group()
 @click.pass_obj
-def variables(obj: ClickAPPObject):
-    pass
+def variables_group(obj: ClickAPPObject) -> None:
+    """
+    Group variables commands.
+
+    :param obj: ClickAPPObject
+    """
+    del obj
 
 
 @click.command(name="list")
 @click.pass_obj
-def variables_list(obj: ClickAPPObject):
+def variables_list_command(obj: ClickAPPObject) -> None:
+    """
+    List variables command.
+
+    :param obj: ClickAPPObject
+    """
     variables = obj.propel_client.variables_list()
     print_json(variables)
 
@@ -394,16 +501,32 @@ def variables_list(obj: ClickAPPObject):
 @click.argument("key", type=str, required=True)
 @click.argument("value", type=str, required=True)
 @click.argument("var_type", type=click.Choice(VAR_TYPES), required=False, default="str")
-def variables_create(obj: ClickAPPObject, name, key, value, var_type):
+def variables_create(
+    obj: ClickAPPObject, name: str, key: str, value: str, var_type: str
+) -> None:
+    """
+    Create variables command.
+
+    :param obj: ClickAPPObject
+    :param name: variable name
+    :param key: agent config variable key name
+    :param value: value
+    :param var_type: variable type
+    """
     variable = obj.propel_client.variables_create(name, key, value, var_type)
     print_json(variable)
 
 
-variables.add_command(variables_create)
-variables.add_command(variables_list)
-cli.add_command(variables)
+variables_group.add_command(variables_create)
+variables_group.add_command(variables_list_command)
+cli.add_command(variables_group)
 
 
-def print_json(data):
+def print_json(data: Dict) -> None:
+    """
+    Print json helper.
+
+    :param data: dict to print
+    """
     result = json.dumps(data, indent=4)
-    print(result)
+    click.echo(result)

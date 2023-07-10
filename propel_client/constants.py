@@ -21,7 +21,8 @@
 import os
 from pathlib import Path
 
-# TODO: nested constants for API2
+
+# TODO: nested constants for API2  # pylint: disable=fixme
 
 API_PREFIX = "/api2"
 LOGIN_ENDPOINT = f"{API_PREFIX}/token-auth/"

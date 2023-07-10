@@ -22,9 +22,9 @@ import json
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-import requests
 
-from propel_client.propel import HttpRequestError, LoginError, PropelClient
+from propel_client.propel import HttpRequestError, PropelClient
+
 
 base_url = "http://some/base"
 USERNAME = "user1"
