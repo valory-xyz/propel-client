@@ -188,7 +188,7 @@ cli.add_command(logout)
 cli.add_command(openai)
 
 
-@click.group()
+@click.group(name="keys")
 @click.pass_obj
 def keys_group(obj: ClickAPPObject) -> None:
     """
@@ -228,7 +228,7 @@ keys_group.add_command(keys_create)
 cli.add_command(keys_group)
 
 
-@click.group()
+@click.group(name="seats")
 @click.pass_obj
 def seats_group(obj: ClickAPPObject) -> None:
     """
@@ -258,7 +258,7 @@ seats_group.add_command(seats_ensure)
 cli.add_command(seats_group)
 
 
-@click.group()
+@click.group(name="agents")
 @click.pass_obj
 def agents_group(obj: ClickAPPObject) -> None:
     """
@@ -472,7 +472,7 @@ agents_group.add_command(agents_ensure_deleted)
 cli.add_command(agents_group)
 
 
-@click.group()
+@click.group(name="variables")
 @click.pass_obj
 def variables_group(obj: ClickAPPObject) -> None:
     """
