@@ -219,7 +219,7 @@ def keys_create(obj: ClickAPPObject) -> None:
 
     :param obj: ClickAPPObject
     """
-    keys = obj.propel_client.keys_list()
+    keys = obj.propel_client.keys_create()
     print_json(keys)
 
 
