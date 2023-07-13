@@ -329,6 +329,127 @@ def agents_create(  # pylint: disable=too-many-arguments
     print_json(agent)
 
 
+@click.command(name="deploy")
+@click.pass_context
+@click.option("--key", type=int, required=True)
+@click.option("--name", type=str, required=False)
+@click.option("--service-ipfs-hash", type=str, required=False)
+@click.option("--variables", type=str, required=False)
+@click.option("--chain-id", type=int, required=False)
+@click.option("--token-id", type=int, required=False)
+@click.option("--ingress-enabled", type=bool, required=False, default=False)
+@click.option("--tendermint-ingress-enabled", type=bool, required=False, default=False)
+@click.option("--timeout", type=int, required=False, default=120)
+def agents_deploy(  # pylint: disable=too-many-arguments
+    ctx: click.Context,
+    key: int,
+    name: str,
+    variables: str,
+    chain_id: int,
+    token_id: int,
+    ingress_enabled: bool,
+    service_ipfs_hash: str,
+    tendermint_ingress_enabled: bool,
+    timeout: int,
+) -> None:
+    """
+    Deploy agent command.
+
+    :param ctx: click context
+    :param key: key id
+    :param name: optional agent name
+    :param service_ipfs_hash: optional service ipfs hash id
+    :param chain_id: optional chain id
+    :param token_id: optional token id
+    :param ingress_enabled: option bool
+    :param variables: optional str
+    :param tendermint_ingress_enabled: optional bool
+    :param timeout: int
+    """
+    ctx.invoke(seats_ensure)
+    ctx.invoke(agents_ensure_deleted, name_or_id=name)
+    ctx.invoke(
+        agents_create,
+        key=key,
+        name=name,
+        variables=variables,
+        chain_id=chain_id,
+        token_id=token_id,
+        ingress_enabled=ingress_enabled,
+        service_ipfs_hash=service_ipfs_hash,
+        tendermint_ingress_enabled=tendermint_ingress_enabled,
+    )
+    ctx.invoke(agents_wait, name_or_id=name, state="DEPLOYED", timeout=timeout)
+    ctx.invoke(agents_restart, name_or_id=name)
+    ctx.invoke(agents_wait, name_or_id=name, state="STARTED", timeout=timeout)
+
+
+agents_group.add_command(agents_deploy)
+
+
+@click.command(name="deploy-multi")
+@click.pass_context
+@click.option("--keys", type=str, required=True)
+@click.option("--names", type=str, required=False)
+@click.option("--service-ipfs-hash", type=str, required=False)
+@click.option("--variables", type=str, required=False)
+@click.option("--chain-id", type=int, required=False)
+@click.option("--token-id", type=int, required=False)
+@click.option("--ingress-enabled", type=bool, required=False, default=False)
+@click.option("--tendermint-ingress-enabled", type=bool, required=False, default=False)
+@click.option("--timeout", type=int, required=False, default=120)
+def agents_deploy_multi(  # pylint: disable=too-many-arguments
+    ctx: click.Context,
+    keys: str,
+    names: str,
+    variables: str,
+    chain_id: int,
+    token_id: int,
+    ingress_enabled: bool,
+    service_ipfs_hash: str,
+    tendermint_ingress_enabled: bool,
+    timeout: int,
+) -> None:
+    """
+    Deploy multiple agents command.
+
+    :param ctx: click context
+    :param keys: list of keys comma separated
+    :param names: list of names comma separated
+    :param service_ipfs_hash: optional service ipfs hash id
+    :param chain_id: optional chain id
+    :param token_id: optional token id
+    :param ingress_enabled: option bool
+    :param variables: optional str
+    :param tendermint_ingress_enabled: optional bool
+    :param timeout: int
+    """
+    names_list = names.split(",")
+    keys_list_ = keys.split(",")
+
+    if len(names_list) != len(keys_list_):
+        raise click.ClickException("amount of names and keys are not the same!")
+
+    for name, key in zip(names_list, keys_list_):
+        click.echo(f"Deploy `{name}` with key {key}")
+        ctx.invoke(
+            agents_deploy,
+            key=key,
+            name=name,
+            variables=variables,
+            chain_id=chain_id,
+            token_id=token_id,
+            ingress_enabled=ingress_enabled,
+            service_ipfs_hash=service_ipfs_hash,
+            tendermint_ingress_enabled=tendermint_ingress_enabled,
+            timeout=timeout,
+        )
+        click.echo(f"Deployed `{name}` with key {key}")
+
+
+agents_group.add_command(agents_deploy_multi)
+
+
 @click.command(name="get")
 @click.pass_obj
 @click.argument("name_or_id", type=str, required=True)
