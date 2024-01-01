@@ -241,7 +241,7 @@ class PropelClient:
 
         :return: dict
         """
-        url = self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}/restart"
+        url = self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}/restart/"
         response = requests.get(url, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
@@ -254,8 +254,53 @@ class PropelClient:
 
         :return: dict
         """
-        url = self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}/stop"
+        url = self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}/stop/"
         response = requests.get(url, **self._get_credentials_params())
+        self._check_response(response)
+        return response.json()
+
+    def agents_variables_add(
+        self, agent_name_or_id: Union[int, str], variables: List[str]
+    ) -> Dict:
+        """
+        Add variables to agent.
+
+        :param agent_name_or_id: str or int
+        :param variables: list of str
+
+        :return: dict
+        """
+        url = (
+            self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}/variables_add/"
+        )
+        response = requests.post(
+            url,
+            json={"variables": variables},
+            **self._get_credentials_params(),
+            allow_redirects=False,
+        )
+        self._check_response(response)
+        return response.json()
+
+    def agents_variables_remove(
+        self, agent_name_or_id: Union[int, str], variables: List[str]
+    ) -> Dict:
+        """
+        Remove variables from agent.
+
+        :param agent_name_or_id: str or int
+        :param variables: list of str
+
+        :return: dict
+        """
+        url = (
+            self._get_url(self.API_AGENTS_LIST)
+            + f"/{agent_name_or_id}/variables_remove/"
+        )
+
+        response = requests.post(
+            url, **self._get_credentials_params(), json={"variables": variables}
+        )
         self._check_response(response)
         return response.json()
 
