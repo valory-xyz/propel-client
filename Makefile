@@ -70,19 +70,3 @@ security:
 	tox -p -e safety -e bandit
 	gitleaks detect --report-format json --report-path leak_report
 
-.PHONY: common-checks-1
-common-checks-1:
-	tox -p -e check-copyright -e check-hash -e check-packages
-
-
-.PHONY: docs
-docs:
-	mkdocs build --clean --strict
-
-.PHONY: test
-test:
-	pytest -rfE tests/ --cov=open_autonomy_client --cov-report=html  --cov-report=xml --cov-report=term --cov-report=term-missing --cov-config=.coveragerc
-	find . -name ".coverage*" -not -name ".coveragerc" -exec rm -fr "{}" \;
-
-.PHONY: all-checks
-all-checks: clean formatters code-checks security common-checks-1 

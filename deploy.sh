@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-export BASE_URL=https://app.propel-dev1.autonolas.tech/
+export BASE_URL=https://app.propel.staging.valory.xyz/
 export CMD="propel  -U $BASE_URL"
 export AGENT_NAME=test_agent1_2
 export KEY_ID=1
@@ -20,7 +20,7 @@ for i in "agent1 3" "agent2 4" "agent3 5" "agent4 6";
 do
     IFS=' ' read -r -a array <<< "$i"
     AGENT_ID=${array[0]}
-    KEY_ID=${array[1]}
+    KEY_ID=${array[1]} 
 
     # check user has seats to perform agent creation
     $CMD seats ensure
@@ -30,7 +30,7 @@ do
     $CMD agents ensure-deleted $AGENT_NAME
 
     # cerate agent. name has to be unique. will not allow create several agents with same name and/or key
-    $CMD agents create --name $AGENT_NAME --key $KEY_ID --service-ipfs-hash $IPFS_HASH --variables $VARIABLES
+    $CMD agents deploy --name  --key $KEY_ID --service-ipfs-hash $IPFS_HASH --variables $VARIABLES
 
     # wait for deployed. but it actually started. callr restart to have clean STARTED  state
     $CMD agents wait $AGENT_NAME DEPLOYED --timeout=120
