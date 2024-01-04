@@ -17,7 +17,9 @@
 #
 # ------------------------------------------------------------------------------
 """CLI implementation."""
+import os
 import json
+from pathlib import Path
 import time
 from dataclasses import dataclass
 from functools import wraps
@@ -34,6 +36,7 @@ from propel_client.propel import (
     NoCredentials,
     PropelClient,
 )
+from propel_client.utils import get_env_vars_for_service
 
 
 url_option = click.option(
@@ -445,6 +448,17 @@ def agents_deploy_multi(  # pylint: disable=too-many-arguments
             timeout=timeout,
         )
         click.echo(f"Deployed `{name}` with key {key}")
+        ctx.invoke(
+            variables_create,
+            key=key,
+            name=name,
+            variables=variables,
+            chain_id=chain_id,
+            token_id=token_id,
+            ingress_enabled=ingress_enabled,
+            service_ipfs_hash=service_ipfs_hash,
+            tendermint_ingress_enabled=tendermint_ingress_enabled,
+        )
 
 
 agents_group.add_command(agents_deploy_multi)
@@ -659,7 +673,7 @@ def variables_list_command(obj: ClickAPPObject) -> None:
 @click.argument("value", type=str, required=True)
 @click.argument("var_type", type=click.Choice(VAR_TYPES), required=False, default="str")
 def variables_create(
-    obj: ClickAPPObject, name: str, key: str, value: str, var_type: str
+    obj: ClickAPPObject, name: str, key: str, value: str, var_type: str = "str"
 ) -> None:
     """
     Create variables command.
@@ -687,3 +701,75 @@ def print_json(data: Dict) -> None:
     """
     result = json.dumps(data, indent=4)
     click.echo(result)
+
+
+@click.group(name="service")
+@click.pass_obj
+def service_group(obj: ClickAPPObject) -> None:
+    """
+    Group agents commands.
+
+    :param obj: ClickAPPObject
+    """
+    del obj
+
+
+@click.command(name="deploy")
+@click.pass_context
+@click.option("--keys", type=str, required=True)
+@click.option("--service-dir", type=click.Path(file_okay=True), required=True)
+@click.option("--name", type=str, required=True)
+@click.option("--service-ipfs-hash", type=str, required=False)
+@click.option("--chain-id", type=int, required=False)
+@click.option("--token-id", type=int, required=False)
+@click.option("--ingress-enabled", type=bool, required=False, default=False)
+@click.option("--tendermint-ingress-enabled", type=bool, required=False, default=False)
+@click.option("--timeout", type=int, required=False, default=120)
+def service_deploy(  # pylint: disable=too-many-arguments
+    ctx: click.Context,
+    keys: str,
+    name: str,
+    chain_id: int,
+    token_id: int,
+    ingress_enabled: bool,
+    service_ipfs_hash: str,
+    tendermint_ingress_enabled: bool,
+    timeout: int,
+    service_dir: str,
+) -> None:
+    "Deploy service with keys ids and variables from service file and env variables."
+    keys_list = list(map(int, keys.split(",")))
+    service_vars = dict(get_env_vars_for_service(Path(service_dir)))
+    environ_vars_set = set(service_vars.keys()).intersection(set(os.environ.keys()))
+    variable_names = []
+
+    for env_name in sorted(environ_vars_set):
+        env_value = os.environ.get(env_name)
+        variable_name = f"{name.upper()}_{env_name}"
+        variable_names.append(variable_name)
+        click.echo(f"Create/update variable: {variable_name}: {env_name}={env_value}")
+        ctx.invoke(variables_create, name=variable_name, key=env_name, value=env_value)
+
+    click.echo(
+        f"Deploy {len(keys_list)} agents for service with variables {','.join(variable_names)}"
+    )
+    for idx, key_id in enumerate(keys_list):
+        agent_name = f"{name}_agent_{idx}"
+        click.echo(f"Deploying agent {agent_name} with key {key_id}")
+        ctx.invoke(
+            agents_deploy,
+            key=key_id,
+            name=agent_name,
+            variables=",".join(variable_names) if variable_names else None,
+            chain_id=chain_id,
+            token_id=token_id,
+            ingress_enabled=ingress_enabled,
+            service_ipfs_hash=service_ipfs_hash,
+            tendermint_ingress_enabled=tendermint_ingress_enabled,
+            timeout=timeout,
+        )
+
+
+service_group.add_command(service_deploy)
+
+cli.add_command(service_group)
