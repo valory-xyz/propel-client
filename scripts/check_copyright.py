@@ -39,6 +39,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterator, Optional, Tuple, cast
 
+
 CURRENT_YEAR = datetime.now().year
 GIT_PATH = shutil.which("git")
 START_YEARS = (2021, 2022, 2023)
