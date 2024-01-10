@@ -51,6 +51,20 @@ url_option = click.option(
     default=PROPEL_SERVICE_BASE_URL,
     help="Base url for propel service",
 )
+http_retries_option = click.option(
+    "--http-retries",
+    type=int,
+    required=False,
+    default=10,
+    help="Amount of http retries",
+)
+backoff_factor_option = click.option(
+    "--backoff-factor",
+    type=float,
+    required=False,
+    default=1.0,
+    help="http retry backoff factor",
+)
 
 
 @dataclass()
@@ -88,7 +102,9 @@ class ClickAPPObject:
 @click.group()
 @click.pass_context
 @url_option
-def cli(ctx: click.Context, url: str) -> None:
+@http_retries_option
+@backoff_factor_option
+def cli(ctx: click.Context, url: str, http_retries: int, backoff_factor: float) -> None:
     """
     Group commands.
 
@@ -97,7 +113,9 @@ def cli(ctx: click.Context, url: str) -> None:
     """
     ctx.url = url
     storage = CredentialStorage()
-    propel_client = PropelClient(url, storage)
+    propel_client = PropelClient(
+        url, storage, retries=http_retries, backoff_factor=backoff_factor
+    )
     ctx.obj = ClickAPPObject(storage=storage, propel_client=propel_client)
 
 
@@ -744,6 +762,8 @@ def service_deploy(  # pylint: disable=too-many-arguments
             except Exception as exc:
                 click.echo(f"ERROR: [Agent {agent_name}]: {exc}")
                 exceptions[agent_name] = exc
+                executor.shutdown(wait=False)
+                break
     if exceptions:
         click.echo("ERROR: Agent deploy errors!")
         raise SystemExit(1)

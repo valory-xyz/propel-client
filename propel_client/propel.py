@@ -72,6 +72,8 @@ class PropelClient:
         self,
         base_url: str,
         credentials_storage: CredentialStorage,
+        retries: int = 10,
+        backoff_factor: float = 1.0,
     ) -> None:
         """
         Init client.
@@ -84,12 +86,17 @@ class PropelClient:
 
         self._http_session = requests.Session()
 
-        retries = Retry(
-            total=5, backoff_factor=0.2, connect=5, read=5, status=0, other=5
+        retry_object = Retry(
+            total=retries,
+            backoff_factor=backoff_factor,
+            connect=retries,
+            read=retries,
+            status=0,
+            other=retries,
         )
 
-        self._http_session.mount("http://", HTTPAdapter(max_retries=retries))
-        self._http_session.mount("https://", HTTPAdapter(max_retries=retries))
+        self._http_session.mount("http://", HTTPAdapter(max_retries=retry_object))
+        self._http_session.mount("https://", HTTPAdapter(max_retries=retry_object))
 
     def _get_url(self, path: str) -> str:
         """

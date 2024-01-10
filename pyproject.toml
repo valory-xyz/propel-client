@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "propel-client"
-version = "v0.0.8"
+version = "v0.0.9"
 description = "Propel service client"
 authors = ["Yuri Turchenkov <yuri.turchenkov@valory.xyz>"]
 readme = "README.md"
