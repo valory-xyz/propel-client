@@ -21,6 +21,8 @@ import time
 from typing import Any, Dict, Generator, Iterable, List, Optional, Union
 
 import requests
+from requests import Response
+from requests.adapters import HTTPAdapter, Retry
 
 from propel_client import constants
 from propel_client.cred_storage import CredentialStorage
@@ -80,6 +82,15 @@ class PropelClient:
         self.base_url = base_url
         self.credentials_storage = credentials_storage
 
+        self._http_session = requests.Session()
+
+        retries = Retry(
+            total=5, backoff_factor=0.2, connect=5, read=5, status=0, other=5
+        )
+
+        self._http_session.mount("http://", HTTPAdapter(max_retries=retries))
+        self._http_session.mount("https://", HTTPAdapter(max_retries=retries))
+
     def _get_url(self, path: str) -> str:
         """
         Return full url for path specified.
@@ -100,7 +111,7 @@ class PropelClient:
         :return: dict  with credentials
         """
         url = self._get_url(self.LOGIN_ENDPOINT)
-        response = requests.post(
+        response = self._http_post(
             url,
             data={
                 "username": username,
@@ -140,7 +151,7 @@ class PropelClient:
     def logout(self) -> None:
         """Logout user."""
         url = self._get_url(self.LOGOUT_ENDPOINT)
-        response = requests.get(url, **self._get_credentials_params())
+        response = self._http_get(url, **self._get_credentials_params())
         self._check_response(response)
         self.credentials_storage.clear()
 
@@ -171,7 +182,9 @@ class PropelClient:
         """
         url = self._get_url(self.OPENAI_ENDPOINT)
         json_data = {"endpoint_path": path, "payload": payload}
-        response = requests.post(url, json=json_data, **self._get_credentials_params())
+        response = self._http_post(
+            url, json=json_data, **self._get_credentials_params()
+        )
         self._check_response(response)
 
         return response.content.decode()
@@ -183,7 +196,7 @@ class PropelClient:
         :return: dict
         """
         url = self._get_url(self.API_KEYS_LIST)
-        response = requests.get(url, **self._get_credentials_params())
+        response = self._http_get(url, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
 
@@ -194,7 +207,7 @@ class PropelClient:
         :return: dict
         """
         url = self._get_url(self.API_KEYS_LIST) + "/"
-        response = requests.post(url, **self._get_credentials_params())
+        response = self._http_post(url, **self._get_credentials_params())
         self._check_response(response, codes=[201])
         return response.json()
 
@@ -205,7 +218,7 @@ class PropelClient:
         :return: dict
         """
         url = self._get_url(self.API_SEATS_LIST)
-        response = requests.get(url, **self._get_credentials_params())
+        response = self._http_get(url, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
 
@@ -216,7 +229,7 @@ class PropelClient:
         :return: dict
         """
         url = self._get_url(self.API_AGENTS_LIST)
-        response = requests.get(url, **self._get_credentials_params())
+        response = self._http_get(url, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
 
@@ -229,9 +242,17 @@ class PropelClient:
         :return: dict
         """
         url = self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}"
-        response = requests.get(url, **self._get_credentials_params())
+        response = self._http_get(url, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
+
+    def _http_get(self, *args, **kwargs) -> Response:
+        """Perform http get request."""
+        return self._http_session.get(*args, **kwargs)
+
+    def _http_post(self, *args, **kwargs) -> Response:
+        """Perform http post request."""
+        return self._http_session.post(*args, **kwargs)
 
     def agents_restart(self, agent_name_or_id: Union[int, str]) -> Dict:
         """
@@ -242,7 +263,7 @@ class PropelClient:
         :return: dict
         """
         url = self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}/restart/"
-        response = requests.get(url, **self._get_credentials_params())
+        response = self._http_get(url, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
 
@@ -255,7 +276,7 @@ class PropelClient:
         :return: dict
         """
         url = self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}/stop/"
-        response = requests.get(url, **self._get_credentials_params())
+        response = self._http_get(url, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
 
@@ -273,7 +294,7 @@ class PropelClient:
         url = (
             self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}/variables_add/"
         )
-        response = requests.post(
+        response = self._http_post(
             url,
             json={"variables": variables},
             **self._get_credentials_params(),
@@ -298,7 +319,7 @@ class PropelClient:
             + f"/{agent_name_or_id}/variables_remove/"
         )
 
-        response = requests.post(
+        response = self._http_post(
             url, **self._get_credentials_params(), json={"variables": variables}
         )
         self._check_response(response)
@@ -313,7 +334,7 @@ class PropelClient:
         :return: dict
         """
         url = self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}/delete"
-        response = requests.get(url, **self._get_credentials_params())
+        response = self._http_get(url, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
 
@@ -325,7 +346,9 @@ class PropelClient:
         :return: respose dict
         """
         url = self._get_url(self.API_AGENTS_LIST) + "/"
-        response = requests.post(url, json=agent_data, **self._get_credentials_params())
+        response = self._http_post(
+            url, json=agent_data, **self._get_credentials_params()
+        )
         self._check_response(response, codes=[201])
         return response.json()
 
@@ -382,7 +405,7 @@ class PropelClient:
         :return: dict
         """
         url = self._get_url(self.API_VARIABLES_LIST) + "/"
-        response = requests.get(url, **self._get_credentials_params())
+        response = self._http_get(url, **self._get_credentials_params())
         self._check_response(response, codes=[200])
         return response.json()
 
@@ -405,7 +428,7 @@ class PropelClient:
             "masked_value": value,
             "var_type": type_,
         }
-        response = requests.post(
+        response = self._http_post(
             url, json=variable_data, **self._get_credentials_params()
         )
         self._check_response(response, codes=[201])

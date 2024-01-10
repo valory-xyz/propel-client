@@ -684,6 +684,7 @@ def service_group(obj: ClickAPPObject) -> None:
 @click.option("--ingress-enabled", type=bool, required=False, default=False)
 @click.option("--tendermint-ingress-enabled", type=bool, required=False, default=False)
 @click.option("--timeout", type=int, required=False, default=120)
+@click.option("--show-variable-value", type=bool, required=False, default=False)
 def service_deploy(  # pylint: disable=too-many-arguments
     ctx: click.Context,
     keys: str,
@@ -695,6 +696,7 @@ def service_deploy(  # pylint: disable=too-many-arguments
     tendermint_ingress_enabled: bool,
     timeout: int,
     service_dir: str,
+    show_variable_value: bool,
 ) -> None:
     """Deploy service with keys ids and variables from service file and env variables."""
     keys_list = list(map(int, keys.split(",")))
@@ -705,8 +707,10 @@ def service_deploy(  # pylint: disable=too-many-arguments
         env_value = os.environ.get(env_name)
         variable_name = f"{name.upper()}_{env_name}"
         variable_names.append(variable_name)
-        # click.echo(f"Create/update variable: {variable_name}: {env_name}={env_value}")
-        # ctx.invoke(variables_create, name=variable_name, key=env_name, value=env_value)
+        click.echo(
+            f"Create/update variable: {variable_name}: {env_name}={env_value if show_variable_value else '******'}"
+        )
+        ctx.invoke(variables_create, name=variable_name, key=env_name, value=env_value)
 
     click.echo(
         f"Deploy {len(keys_list)} agents for service with variables {','.join(variable_names)}"
