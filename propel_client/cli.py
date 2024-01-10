@@ -17,14 +17,17 @@
 #
 # ------------------------------------------------------------------------------
 """CLI implementation."""
+import concurrent.futures
 import json
 import os
+import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import wraps
 from pathlib import Path
 from sys import stdin
+from traceback import print_exc, print_tb
 from typing import Any, Callable, Dict, Optional
 
 import click  # type: ignore
@@ -702,19 +705,20 @@ def service_deploy(  # pylint: disable=too-many-arguments
         env_value = os.environ.get(env_name)
         variable_name = f"{name.upper()}_{env_name}"
         variable_names.append(variable_name)
-        click.echo(f"Create/update variable: {variable_name}: {env_name}={env_value}")
-        ctx.invoke(variables_create, name=variable_name, key=env_name, value=env_value)
+        # click.echo(f"Create/update variable: {variable_name}: {env_name}={env_value}")
+        # ctx.invoke(variables_create, name=variable_name, key=env_name, value=env_value)
 
     click.echo(
         f"Deploy {len(keys_list)} agents for service with variables {','.join(variable_names)}"
     )
     with ThreadPoolExecutor(max_workers=len(keys_list)) as executor:
+        futures = {}
         for idx, key_id in enumerate(keys_list):
             agent_name = f"{name}_agent_{idx}"
             click.echo(
                 f"[Agent: {agent_name}] Deploying agent {agent_name} with key {key_id}"
             )
-            executor.submit(
+            f = executor.submit(
                 ctx.invoke,
                 agents_deploy,
                 key=key_id,
@@ -727,6 +731,18 @@ def service_deploy(  # pylint: disable=too-many-arguments
                 tendermint_ingress_enabled=tendermint_ingress_enabled,
                 timeout=timeout,
             )
+            futures[f] = agent_name
+        exceptions = {}
+        for future in concurrent.futures.as_completed(futures):
+            agent_name = futures[future]
+            try:
+                future.result()
+            except Exception as exc:
+                click.echo(f"ERROR: [Agent {agent_name}]: {exc}")
+                exceptions[agent_name] = exc
+    if exceptions:
+        click.echo("ERROR: Agent deploy errors!")
+        raise SystemExit(1)
 
 
 service_group.add_command(service_deploy)
