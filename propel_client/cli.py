@@ -71,7 +71,7 @@ requests_timeout_option = click.option(
     "--http-timeout",
     type=float,
     required=False,
-    default=20.0,
+    default=20,
     help="http timeout",
 )
 

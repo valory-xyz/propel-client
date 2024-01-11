@@ -57,12 +57,14 @@ class HttpRequestError(BaseClientError):
 
 
 class LogRetry(Retry):
-  """
-     Adding extra logs before making a retry request     
-  """      
-  def __init__(self, *args, **kwargs):
-    print("RETRY", args, kwargs)
-    super().__init__(*args, **kwargs)
+    """
+    Adding extra logs before making a retry request
+    """
+
+    def __init__(self, *args, **kwargs):
+        print("RETRY", args, kwargs)
+        super().__init__(*args, **kwargs)
+
 
 class PropelClient:
     """Propel client."""
@@ -94,18 +96,9 @@ class PropelClient:
         self.credentials_storage = credentials_storage
 
         self._http_session = requests.Session()
-
-        retry_object = LogRetry(
-            total=retries,
-            backoff_factor=backoff_factor,
-            connect=retries,
-            read=retries,
-            status=0,
-            other=retries,
-        )
+        self._retries = retries
+        self._backoff_factor = backoff_factor
         self._timeout = timeout
-        self._http_session.mount("http://", HTTPAdapter(max_retries=retry_object))
-        self._http_session.mount("https://", HTTPAdapter(max_retries=retry_object))
 
     def _get_url(self, path: str) -> str:
         """
@@ -264,11 +257,25 @@ class PropelClient:
 
     def _http_get(self, *args, **kwargs) -> Response:
         """Perform http get request."""
-        return self._http_session.get(*args, **kwargs, timeout=self._timeout)
+        for i in range(self._retries):
+            try:
+                return self._http_session.get(*args, **kwargs, timeout=self._timeout)
+            except Exception as e:
+                print(f"Failed to perform get request: {args}: attempt {i+1} exception {e}")
+                time.sleep(self._backoff_factor * (2**i))
 
     def _http_post(self, *args, **kwargs) -> Response:
         """Perform http post request."""
-        return self._http_session.post(*args, **kwargs, timeout=self._timeout)
+        for i in range(self._retries):
+            try:
+                return self._http_session.post(*args, **kwargs, timeout=self._timeout)
+            except Exception as e:
+                print(f"Failed to perform post request: {args}: attempt {i+1} exception {e}")
+                if i < self._retries -1:
+                    time.sleep(self._backoff_factor * (2**i))
+                else:
+                    raise
+
 
     def agents_restart(self, agent_name_or_id: Union[int, str]) -> Dict:
         """
