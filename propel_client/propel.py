@@ -56,6 +56,14 @@ class HttpRequestError(BaseClientError):
         super().__init__(message, *args)
 
 
+class LogRetry(Retry):
+  """
+     Adding extra logs before making a retry request     
+  """      
+  def __init__(self, *args, **kwargs):
+    print("RETRY", args, kwargs)
+    super().__init__(*args, **kwargs)
+
 class PropelClient:
     """Propel client."""
 
@@ -86,7 +94,7 @@ class PropelClient:
 
         self._http_session = requests.Session()
 
-        retry_object = Retry(
+        retry_object = LogRetry(
             total=retries,
             backoff_factor=backoff_factor,
             connect=retries,

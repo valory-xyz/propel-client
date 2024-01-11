@@ -18,6 +18,7 @@
 # ------------------------------------------------------------------------------
 """CLI implementation."""
 import concurrent.futures
+from contextlib import contextmanager
 import json
 import os
 import sys
@@ -376,6 +377,8 @@ def agents_deploy(  # pylint: disable=too-many-arguments
     service_ipfs_hash: str,
     tendermint_ingress_enabled: bool,
     timeout: int,
+    do_restart: bool = True,
+    do_delete: bool = True,
 ) -> None:
     """
     Deploy agent command.
@@ -392,9 +395,10 @@ def agents_deploy(  # pylint: disable=too-many-arguments
     :param timeout: int
     """
     ctx.invoke(seats_ensure)
-    click.echo(f"[Agent: {name}] ensure agent deleted")
-    ctx.invoke(agents_ensure_deleted, name_or_id=name)
-    click.echo(f"[Agent: {name}] agent deleted")
+    if do_delete:
+        click.echo(f"[Agent: {name}] ensure agent deleted")
+        ctx.invoke(agents_ensure_deleted, name_or_id=name)
+        click.echo(f"[Agent: {name}] agent deleted")
     click.echo(f"[Agent: {name}] create agent")
     ctx.invoke(
         agents_create,
@@ -409,6 +413,13 @@ def agents_deploy(  # pylint: disable=too-many-arguments
     )
     ctx.invoke(agents_wait, name_or_id=name, state="DEPLOYED", timeout=timeout)
     click.echo(f"[Agent: {name}] agent deployed")
+    if do_restart:
+        _restart_and_wait(ctx, name_or_id=name, timeout=timeout)
+
+
+def _restart_and_wait(ctx, name_or_id: str, timeout: int):
+    name = name_or_id
+    click.echo(f"[Agent: {name}] agent restarting")
     ctx.invoke(agents_restart, name_or_id=name)
     ctx.invoke(agents_wait, name_or_id=name, state="STARTED", timeout=timeout)
     click.echo(f"[Agent: {name}] agent started")
@@ -733,26 +744,62 @@ def service_deploy(  # pylint: disable=too-many-arguments
     click.echo(
         f"Deploy {len(keys_list)} agents for service with variables {','.join(variable_names)}"
     )
+
+    def _deploy(idx, key_id, executor):
+        agent_name = f"{name}_agent_{idx}"
+        click.echo(f"[Agent: {agent_name}] Deploying with keey id {key_id}")
+        f = executor.submit(
+            ctx.invoke,
+            agents_deploy,
+            key=key_id,
+            name=agent_name,
+            variables=",".join(variable_names) if variable_names else None,
+            chain_id=chain_id,
+            token_id=token_id,
+            ingress_enabled=ingress_enabled,
+            service_ipfs_hash=service_ipfs_hash,
+            tendermint_ingress_enabled=tendermint_ingress_enabled,
+            timeout=timeout,
+            do_restart=False,
+            do_delete=False,
+        )
+        return f, agent_name
+
+    def _delete(idx, _, executor):
+        agent_name = f"{name}_agent_{idx}"
+        click.echo(f"[Agent: {agent_name}] deleting")
+        f = executor.submit(
+            ctx.invoke,
+            agents_ensure_deleted,
+            name_or_id=agent_name,
+            timeout=timeout,
+        )
+        return f, agent_name
+
+    def _restart(idx, key_id, executor):
+        agent_name = f"{name}_agent_{idx}"
+        click.echo(f"[Agent: {agent_name}] deleting")
+        f = executor.submit(
+            _restart_and_wait,
+            ctx,
+            name_or_id=agent_name,
+            timeout=timeout,
+        )
+        return f, agent_name
+
+    _run_agents_command(keys_list, _delete)
+    click.echo("All agents deleted")
+    _run_agents_command(keys_list, _deploy)
+    click.echo("All agents deployed")
+    _run_agents_command(keys_list, _restart)
+    click.echo("All agents restarted")
+
+
+def _run_agents_command(keys_list, fn):
     with ThreadPoolExecutor(max_workers=len(keys_list)) as executor:
         futures = {}
         for idx, key_id in enumerate(keys_list):
-            agent_name = f"{name}_agent_{idx}"
-            click.echo(
-                f"[Agent: {agent_name}] Deploying agent {agent_name} with key {key_id}"
-            )
-            f = executor.submit(
-                ctx.invoke,
-                agents_deploy,
-                key=key_id,
-                name=agent_name,
-                variables=",".join(variable_names) if variable_names else None,
-                chain_id=chain_id,
-                token_id=token_id,
-                ingress_enabled=ingress_enabled,
-                service_ipfs_hash=service_ipfs_hash,
-                tendermint_ingress_enabled=tendermint_ingress_enabled,
-                timeout=timeout,
-            )
+            f, agent_name = fn(idx, key_id, executor)
             futures[f] = agent_name
         exceptions = {}
         for future in concurrent.futures.as_completed(futures):
@@ -765,7 +812,7 @@ def service_deploy(  # pylint: disable=too-many-arguments
                 executor.shutdown(wait=False)
                 break
     if exceptions:
-        click.echo("ERROR: Agent deploy errors!")
+        click.echo("ERROR: Agent errors!")
         raise SystemExit(1)
 
 
