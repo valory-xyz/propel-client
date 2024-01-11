@@ -82,6 +82,7 @@ class PropelClient:
         credentials_storage: CredentialStorage,
         retries: int = 10,
         backoff_factor: float = 1.0,
+        timeout: float = 20,
     ) -> None:
         """
         Init client.
@@ -102,7 +103,7 @@ class PropelClient:
             status=0,
             other=retries,
         )
-
+        self._timeout = timeout
         self._http_session.mount("http://", HTTPAdapter(max_retries=retry_object))
         self._http_session.mount("https://", HTTPAdapter(max_retries=retry_object))
 
@@ -263,11 +264,11 @@ class PropelClient:
 
     def _http_get(self, *args, **kwargs) -> Response:
         """Perform http get request."""
-        return self._http_session.get(*args, **kwargs)
+        return self._http_session.get(*args, **kwargs, timeout=self._timeout)
 
     def _http_post(self, *args, **kwargs) -> Response:
         """Perform http post request."""
-        return self._http_session.post(*args, **kwargs)
+        return self._http_session.post(*args, **kwargs, timeout=self._timeout)
 
     def agents_restart(self, agent_name_or_id: Union[int, str]) -> Dict:
         """

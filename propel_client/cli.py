@@ -63,8 +63,16 @@ backoff_factor_option = click.option(
     "--backoff-factor",
     type=float,
     required=False,
-    default=1.0,
+    default=0.05,
     help="http retry backoff factor",
+)
+
+requests_timeout_option = click.option(
+    "--http-timeout",
+    type=float,
+    required=False,
+    default=20.0,
+    help="http timeout",
 )
 
 
@@ -104,8 +112,15 @@ class ClickAPPObject:
 @click.pass_context
 @url_option
 @http_retries_option
+@requests_timeout_option
 @backoff_factor_option
-def cli(ctx: click.Context, url: str, http_retries: int, backoff_factor: float) -> None:
+def cli(
+    ctx: click.Context,
+    url: str,
+    http_retries: int,
+    backoff_factor: float,
+    http_timeout: float,
+) -> None:
     """
     Group commands.
 
@@ -115,7 +130,11 @@ def cli(ctx: click.Context, url: str, http_retries: int, backoff_factor: float) 
     ctx.url = url
     storage = CredentialStorage()
     propel_client = PropelClient(
-        url, storage, retries=http_retries, backoff_factor=backoff_factor
+        url,
+        storage,
+        retries=http_retries,
+        backoff_factor=backoff_factor,
+        timeout=http_timeout,
     )
     ctx.obj = ClickAPPObject(storage=storage, propel_client=propel_client)
 
@@ -778,7 +797,7 @@ def service_deploy(  # pylint: disable=too-many-arguments
 
     def _restart(idx, key_id, executor):
         agent_name = f"{name}_agent_{idx}"
-        click.echo(f"[Agent: {agent_name}] deleting")
+        click.echo(f"[Agent: {agent_name}] restarting")
         f = executor.submit(
             _restart_and_wait,
             ctx,
