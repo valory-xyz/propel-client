@@ -826,7 +826,7 @@ def _run_agents_command(keys_list, fn):
             try:
                 future.result()
             except Exception as exc:
-                click.echo(f"ERROR: [Agent {agent_name}]: {exc}")
+                click.echo(f"ERROR: [Agent {agent_name}]: {repr(exc)}")
                 exceptions[agent_name] = exc
                 executor.shutdown(wait=False)
                 break
