@@ -18,17 +18,15 @@
 # ------------------------------------------------------------------------------
 """CLI implementation."""
 import concurrent.futures
-from contextlib import contextmanager
 import json
 import os
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import wraps
 from pathlib import Path
 from sys import stdin
-from traceback import print_exc, print_tb
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import click  # type: ignore
 
@@ -125,8 +123,11 @@ def cli(
 
     :param ctx: click context
     :param url: base propel api url
+    :param http_retries: int num of http request retries
+    :param backoff_factor: flost factor for delays  in retries
+    :param http_timeout: int request timeout in seconds
     """
-    ctx.url = url
+    ctx.url = url  # type: ignore
     storage = CredentialStorage()
     propel_client = PropelClient(
         url,
@@ -245,7 +246,7 @@ def keys_group(obj: ClickAPPObject) -> None:
 
 @click.command(name="list")
 @click.pass_obj
-def keys_list(obj: ClickAPPObject) -> None:
+def keys_list_command(obj: ClickAPPObject) -> None:
     """
     List keys command.
 
@@ -267,7 +268,7 @@ def keys_create(obj: ClickAPPObject) -> None:
     print_json(keys)
 
 
-keys_group.add_command(keys_list)
+keys_group.add_command(keys_list_command)
 keys_group.add_command(keys_create)
 cli.add_command(keys_group)
 
@@ -411,6 +412,8 @@ def agents_deploy(  # pylint: disable=too-many-arguments
     :param variables: optional str
     :param tendermint_ingress_enabled: optional bool
     :param timeout: int
+    :param do_restart: bool, restart after deployment
+    :param do_delete: bool, delete agents first
     """
     ctx.invoke(seats_ensure)
     if do_delete:
@@ -435,7 +438,7 @@ def agents_deploy(  # pylint: disable=too-many-arguments
         _restart_and_wait(ctx, name_or_id=name, timeout=timeout)
 
 
-def _restart_and_wait(ctx, name_or_id: str, timeout: int):
+def _restart_and_wait(ctx: click.Context, name_or_id: str, timeout: int) -> None:
     name = name_or_id
     click.echo(f"[Agent: {name}] agent restarting")
     ctx.invoke(agents_restart, name_or_id=name)
@@ -614,42 +617,6 @@ def agents_variables_remove(
     print_json(agent)
 
 
-@click.command(name="variables-add")
-@click.pass_obj
-@click.argument("name_or_id", type=str, required=True)
-@click.argument("variables", type=str, required=False)
-def agents_variables_add(obj: ClickAPPObject, name_or_id: str, variables: str) -> None:
-    """
-    Add variables to agent.
-
-    :param name_or_id: str
-    :param variables: str
-    :param obj: ClickAPPObject
-    """
-    variables_list = variables.split(",") or [] if variables else []
-    agent = obj.propel_client.agents_variables_add(name_or_id, variables_list)
-    print_json(agent)
-
-
-@click.command(name="variables-remove")
-@click.pass_obj
-@click.argument("name_or_id", type=str, required=True)
-@click.argument("variables", type=str, required=False)
-def agents_variables_remove(
-    obj: ClickAPPObject, name_or_id: str, variables: str
-) -> None:
-    """
-    Remove variables from agent.
-
-    :param name_or_id: str
-    :param variables: str
-    :param obj: ClickAPPObject
-    """
-    variables_list = variables.split(",") or [] if variables else []
-    agent = obj.propel_client.agents_variables_remove(name_or_id, variables_list)
-    print_json(agent)
-
-
 @click.command(name="delete")
 @click.pass_obj
 @click.argument("name_or_id", type=str, required=True)
@@ -768,7 +735,7 @@ def service_group(obj: ClickAPPObject) -> None:
 @click.option("--tendermint-ingress-enabled", type=bool, required=False, default=False)
 @click.option("--timeout", type=int, required=False, default=120)
 @click.option("--show-variable-value", type=bool, required=False, default=False)
-def service_deploy(  # pylint: disable=too-many-arguments
+def service_deploy(  # pylint: disable=too-many-arguments,too-many-locals
     ctx: click.Context,
     keys: str,
     name: str,
@@ -799,7 +766,9 @@ def service_deploy(  # pylint: disable=too-many-arguments
         f"Deploy {len(keys_list)} agents for service with variables {','.join(variable_names)}"
     )
 
-    def _deploy(idx, key_id, executor):
+    def _deploy(
+        idx: int, key_id: int, executor: ThreadPoolExecutor
+    ) -> tuple[Future[Any], str]:
         agent_name = f"{name}_agent_{idx}"
         click.echo(f"[Agent: {agent_name}] Deploying with keey id {key_id}")
         f = executor.submit(
@@ -819,7 +788,9 @@ def service_deploy(  # pylint: disable=too-many-arguments
         )
         return f, agent_name
 
-    def _delete(idx, _, executor):
+    def _delete(
+        idx: int, _: int, executor: ThreadPoolExecutor
+    ) -> tuple[Future[Any], str]:
         agent_name = f"{name}_agent_{idx}"
         click.echo(f"[Agent: {agent_name}] deleting")
         f = executor.submit(
@@ -830,7 +801,9 @@ def service_deploy(  # pylint: disable=too-many-arguments
         )
         return f, agent_name
 
-    def _restart(idx, key_id, executor):
+    def _restart(
+        idx: int, _: int, executor: ThreadPoolExecutor
+    ) -> tuple[Future[None], str]:
         agent_name = f"{name}_agent_{idx}"
         click.echo(f"[Agent: {agent_name}] restarting")
         f = executor.submit(
@@ -849,7 +822,7 @@ def service_deploy(  # pylint: disable=too-many-arguments
     click.echo("All agents restarted")
 
 
-def _run_agents_command(keys_list, fn):
+def _run_agents_command(keys_list: List[int], fn: Callable) -> None:
     with ThreadPoolExecutor(max_workers=len(keys_list)) as executor:
         futures = {}
         for idx, key_id in enumerate(keys_list):
@@ -860,7 +833,7 @@ def _run_agents_command(keys_list, fn):
             agent_name = futures[future]
             try:
                 future.result()
-            except Exception as exc:
+            except Exception as exc:  # pylint: disable=broad-except
                 click.echo(f"ERROR: [Agent {agent_name}]: {repr(exc)}")
                 exceptions[agent_name] = exc
                 executor.shutdown(wait=False)

@@ -22,7 +22,6 @@ from typing import Any, Dict, Generator, Iterable, List, Optional, Union
 
 import requests
 from requests import Response
-from requests.adapters import HTTPAdapter, Retry
 
 from propel_client import constants
 from propel_client.cred_storage import CredentialStorage
@@ -56,16 +55,6 @@ class HttpRequestError(BaseClientError):
         super().__init__(message, *args)
 
 
-class LogRetry(Retry):
-    """
-    Adding extra logs before making a retry request
-    """
-
-    def __init__(self, *args, **kwargs):
-        print("RETRY", args, kwargs)
-        super().__init__(*args, **kwargs)
-
-
 class PropelClient:
     """Propel client."""
 
@@ -78,19 +67,22 @@ class PropelClient:
     API_AGENTS_LIST = constants.AGENTS_LIST
     API_VARIABLES_LIST = constants.VARIABLES_LIST
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         base_url: str,
         credentials_storage: CredentialStorage,
         retries: int = 10,
-        backoff_factor: float = 1.0,
-        timeout: float = 20,
+        backoff_factor: float = 0.1,
+        timeout: float = 60,
     ) -> None:
         """
         Init client.
 
         :param base_url: base propel http server url
         :param credentials_storage: credential storage instance.
+        :param retries: int num of http request retries
+        :param backoff_factor: flost factor for delays  in retries
+        :param timeout: int request timeout in seconds
         """
         self.base_url = base_url
         self.credentials_storage = credentials_storage
@@ -255,27 +247,33 @@ class PropelClient:
         self._check_response(response)
         return response.json()
 
-    def _http_get(self, *args, **kwargs) -> Response:
+    def _http_get(self, *args, **kwargs) -> Response:  # type: ignore # pylint: disable=inconsistent-return-statements
         """Perform http get request."""
         for i in range(self._retries):
             try:
                 return self._http_session.get(*args, **kwargs, timeout=self._timeout)
-            except Exception as e:
-                print(f"Failed to perform get request: {args}: attempt {i+1} exception {e}")
-                time.sleep(self._backoff_factor * (2**i))
-
-    def _http_post(self, *args, **kwargs) -> Response:
-        """Perform http post request."""
-        for i in range(self._retries):
-            try:
-                return self._http_session.post(*args, **kwargs, timeout=self._timeout)
-            except Exception as e:
-                print(f"Failed to perform post request: {args}: attempt {i+1} exception {e}")
-                if i < self._retries -1:
+            except Exception as e:  # pylint: disable=broad-except
+                print(
+                    f"Failed to perform get request: {args}: attempt {i+1} exception {e}"
+                )
+                if i < self._retries - 1:
                     time.sleep(self._backoff_factor * (2**i))
                 else:
                     raise
 
+    def _http_post(self, *args, **kwargs) -> Response:  # type: ignore # pylint: disable=inconsistent-return-statements
+        """Perform http post request."""
+        for i in range(self._retries):
+            try:
+                return self._http_session.post(*args, **kwargs, timeout=self._timeout)
+            except Exception as e:  # pylint: disable=broad-except
+                print(
+                    f"Failed to perform post request: {args}: attempt {i+1} exception {e}"
+                )
+                if i < self._retries - 1:
+                    time.sleep(self._backoff_factor * (2**i))
+                else:
+                    raise
 
     def agents_restart(self, agent_name_or_id: Union[int, str]) -> Dict:
         """
@@ -343,51 +341,6 @@ class PropelClient:
         )
 
         response = self._http_post(
-            url, **self._get_credentials_params(), json={"variables": variables}
-        )
-        self._check_response(response)
-        return response.json()
-
-    def agents_variables_add(
-        self, agent_name_or_id: Union[int, str], variables: List[str]
-    ) -> Dict:
-        """
-        Add variables to agent.
-
-        :param agent_name_or_id: str or int
-        :param variables: list of str
-
-        :return: dict
-        """
-        url = (
-            self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}/variables_add/"
-        )
-        response = requests.post(
-            url,
-            json={"variables": variables},
-            **self._get_credentials_params(),
-            allow_redirects=False,
-        )
-        self._check_response(response)
-        return response.json()
-
-    def agents_variables_remove(
-        self, agent_name_or_id: Union[int, str], variables: List[str]
-    ) -> Dict:
-        """
-        Remove variables from agent.
-
-        :param agent_name_or_id: str or int
-        :param variables: list of str
-
-        :return: dict
-        """
-        url = (
-            self._get_url(self.API_AGENTS_LIST)
-            + f"/{agent_name_or_id}/variables_remove/"
-        )
-
-        response = requests.post(
             url, **self._get_credentials_params(), json={"variables": variables}
         )
         self._check_response(response)
