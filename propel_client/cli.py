@@ -21,7 +21,6 @@ import concurrent.futures
 from contextlib import contextmanager
 import json
 import os
-import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -612,6 +611,42 @@ def agents_variables_remove(
     variables_list = variables.split(",") or [] if variables else []
     agent = obj.propel_client.agents_variables_remove(name_or_id, variables_list)
     click.echo(f"[Agent: {name_or_id}] variables removed {variables_list}.")
+    print_json(agent)
+
+
+@click.command(name="variables-add")
+@click.pass_obj
+@click.argument("name_or_id", type=str, required=True)
+@click.argument("variables", type=str, required=False)
+def agents_variables_add(obj: ClickAPPObject, name_or_id: str, variables: str) -> None:
+    """
+    Add variables to agent.
+
+    :param name_or_id: str
+    :param variables: str
+    :param obj: ClickAPPObject
+    """
+    variables_list = variables.split(",") or [] if variables else []
+    agent = obj.propel_client.agents_variables_add(name_or_id, variables_list)
+    print_json(agent)
+
+
+@click.command(name="variables-remove")
+@click.pass_obj
+@click.argument("name_or_id", type=str, required=True)
+@click.argument("variables", type=str, required=False)
+def agents_variables_remove(
+    obj: ClickAPPObject, name_or_id: str, variables: str
+) -> None:
+    """
+    Remove variables from agent.
+
+    :param name_or_id: str
+    :param variables: str
+    :param obj: ClickAPPObject
+    """
+    variables_list = variables.split(",") or [] if variables else []
+    agent = obj.propel_client.agents_variables_remove(name_or_id, variables_list)
     print_json(agent)
 
 
