@@ -87,7 +87,6 @@ class PropelClient:
         self.base_url = base_url
         self.credentials_storage = credentials_storage
 
-        self._http_session = requests.Session()
         self._retries = retries
         self._backoff_factor = backoff_factor
         self._timeout = timeout
@@ -251,7 +250,7 @@ class PropelClient:
         """Perform http get request."""
         for i in range(self._retries):
             try:
-                return self._http_session.get(*args, **kwargs, timeout=self._timeout)
+                return requests.get(*args, **kwargs, timeout=self._timeout)
             except Exception as e:  # pylint: disable=broad-except
                 print(
                     f"Failed to perform get request: {args}: attempt {i+1} exception {e}"
@@ -265,7 +264,7 @@ class PropelClient:
         """Perform http post request."""
         for i in range(self._retries):
             try:
-                return self._http_session.post(*args, **kwargs, timeout=self._timeout)
+                return requests.post(*args, **kwargs, timeout=self._timeout)
             except Exception as e:  # pylint: disable=broad-except
                 print(
                     f"Failed to perform post request: {args}: attempt {i+1} exception {e}"
