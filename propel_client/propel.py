@@ -21,6 +21,7 @@ import time
 from typing import Any, Dict, Generator, Iterable, List, Optional, Union
 
 import requests
+from requests import Response
 
 from propel_client import constants
 from propel_client.cred_storage import CredentialStorage
@@ -66,19 +67,29 @@ class PropelClient:
     API_AGENTS_LIST = constants.AGENTS_LIST
     API_VARIABLES_LIST = constants.VARIABLES_LIST
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         base_url: str,
         credentials_storage: CredentialStorage,
+        retries: int = 10,
+        backoff_factor: float = 0.1,
+        timeout: float = 60,
     ) -> None:
         """
         Init client.
 
         :param base_url: base propel http server url
         :param credentials_storage: credential storage instance.
+        :param retries: int num of http request retries
+        :param backoff_factor: flost factor for delays  in retries
+        :param timeout: int request timeout in seconds
         """
         self.base_url = base_url
         self.credentials_storage = credentials_storage
+
+        self._retries = retries
+        self._backoff_factor = backoff_factor
+        self._timeout = timeout
 
     def _get_url(self, path: str) -> str:
         """
@@ -100,7 +111,7 @@ class PropelClient:
         :return: dict  with credentials
         """
         url = self._get_url(self.LOGIN_ENDPOINT)
-        response = requests.post(
+        response = self._http_post(
             url,
             data={
                 "username": username,
@@ -140,7 +151,7 @@ class PropelClient:
     def logout(self) -> None:
         """Logout user."""
         url = self._get_url(self.LOGOUT_ENDPOINT)
-        response = requests.get(url, **self._get_credentials_params())
+        response = self._http_get(url, **self._get_credentials_params())
         self._check_response(response)
         self.credentials_storage.clear()
 
@@ -171,7 +182,9 @@ class PropelClient:
         """
         url = self._get_url(self.OPENAI_ENDPOINT)
         json_data = {"endpoint_path": path, "payload": payload}
-        response = requests.post(url, json=json_data, **self._get_credentials_params())
+        response = self._http_post(
+            url, json=json_data, **self._get_credentials_params()
+        )
         self._check_response(response)
 
         return response.content.decode()
@@ -183,7 +196,7 @@ class PropelClient:
         :return: dict
         """
         url = self._get_url(self.API_KEYS_LIST)
-        response = requests.get(url, **self._get_credentials_params())
+        response = self._http_get(url, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
 
@@ -194,7 +207,7 @@ class PropelClient:
         :return: dict
         """
         url = self._get_url(self.API_KEYS_LIST) + "/"
-        response = requests.post(url, **self._get_credentials_params())
+        response = self._http_post(url, **self._get_credentials_params())
         self._check_response(response, codes=[201])
         return response.json()
 
@@ -205,7 +218,7 @@ class PropelClient:
         :return: dict
         """
         url = self._get_url(self.API_SEATS_LIST)
-        response = requests.get(url, **self._get_credentials_params())
+        response = self._http_get(url, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
 
@@ -216,7 +229,7 @@ class PropelClient:
         :return: dict
         """
         url = self._get_url(self.API_AGENTS_LIST)
-        response = requests.get(url, **self._get_credentials_params())
+        response = self._http_get(url, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
 
@@ -229,9 +242,37 @@ class PropelClient:
         :return: dict
         """
         url = self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}"
-        response = requests.get(url, **self._get_credentials_params())
+        response = self._http_get(url, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
+
+    def _http_get(self, *args, **kwargs) -> Response:  # type: ignore # pylint: disable=inconsistent-return-statements
+        """Perform http get request."""
+        for i in range(self._retries):
+            try:
+                return requests.get(*args, **kwargs, timeout=self._timeout)
+            except Exception as e:  # pylint: disable=broad-except
+                print(
+                    f"Failed to perform get request: {args}: attempt {i+1} exception {e}"
+                )
+                if i < self._retries - 1:
+                    time.sleep(self._backoff_factor * (2**i))
+                else:
+                    raise
+
+    def _http_post(self, *args, **kwargs) -> Response:  # type: ignore # pylint: disable=inconsistent-return-statements
+        """Perform http post request."""
+        for i in range(self._retries):
+            try:
+                return requests.post(*args, **kwargs, timeout=self._timeout)
+            except Exception as e:  # pylint: disable=broad-except
+                print(
+                    f"Failed to perform post request: {args}: attempt {i+1} exception {e}"
+                )
+                if i < self._retries - 1:
+                    time.sleep(self._backoff_factor * (2**i))
+                else:
+                    raise
 
     def agents_restart(self, agent_name_or_id: Union[int, str]) -> Dict:
         """
@@ -242,7 +283,7 @@ class PropelClient:
         :return: dict
         """
         url = self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}/restart/"
-        response = requests.get(url, **self._get_credentials_params())
+        response = self._http_get(url, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
 
@@ -255,7 +296,7 @@ class PropelClient:
         :return: dict
         """
         url = self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}/stop/"
-        response = requests.get(url, **self._get_credentials_params())
+        response = self._http_get(url, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
 
@@ -273,7 +314,7 @@ class PropelClient:
         url = (
             self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}/variables_add/"
         )
-        response = requests.post(
+        response = self._http_post(
             url,
             json={"variables": variables},
             **self._get_credentials_params(),
@@ -298,7 +339,7 @@ class PropelClient:
             + f"/{agent_name_or_id}/variables_remove/"
         )
 
-        response = requests.post(
+        response = self._http_post(
             url, **self._get_credentials_params(), json={"variables": variables}
         )
         self._check_response(response)
@@ -313,7 +354,7 @@ class PropelClient:
         :return: dict
         """
         url = self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}/delete"
-        response = requests.get(url, **self._get_credentials_params())
+        response = self._http_get(url, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
 
@@ -325,7 +366,9 @@ class PropelClient:
         :return: respose dict
         """
         url = self._get_url(self.API_AGENTS_LIST) + "/"
-        response = requests.post(url, json=agent_data, **self._get_credentials_params())
+        response = self._http_post(
+            url, json=agent_data, **self._get_credentials_params()
+        )
         self._check_response(response, codes=[201])
         return response.json()
 
@@ -382,7 +425,7 @@ class PropelClient:
         :return: dict
         """
         url = self._get_url(self.API_VARIABLES_LIST) + "/"
-        response = requests.get(url, **self._get_credentials_params())
+        response = self._http_get(url, **self._get_credentials_params())
         self._check_response(response, codes=[200])
         return response.json()
 
@@ -405,7 +448,7 @@ class PropelClient:
             "masked_value": value,
             "var_type": type_,
         }
-        response = requests.post(
+        response = self._http_post(
             url, json=variable_data, **self._get_credentials_params()
         )
         self._check_response(response, codes=[201])
