@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "propel-client"
-version = "v0.0.10"
+version = "v0.0.11"
 description = "Propel service client"
 authors = ["Yuri Turchenkov <yuri.turchenkov@valory.xyz>"]
 readme = "README.md"
@@ -11,7 +11,7 @@ packages = [{ include = "propel_client" }]
 python = ">=3.8,<4.0"
 click = "*"
 requests = "*"
-open-autonomy = "^0.13.9.post1"
+open-autonomy = "^0.14.3.post1"
 
 
 [tool.poetry.group.dev.dependencies]
