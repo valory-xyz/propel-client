@@ -6,6 +6,13 @@ from typing import Any, Generator
 from aea.helpers.env_vars import ENV_VARIABLE_RE, is_env_variable
 from autonomy.configurations.loader import load_service_config
 
+RESOURCE_ENV_VARS = [
+    "AUTONOMY_AGENT_MEMORY_LIMIT",
+    "AUTONOMY_AGENT_CPU_LIMIT",
+    "AUTONOMY_AGENT_MEMORY_REQUEST",
+    "AUTONOMY_AGENT_CPU_REQUEST",
+]
+
 
 def get_all_env_vars(d: Any) -> Generator[tuple[str | Any, str | Any] | Any, Any, None]:
     """Get env vars from dict."""
@@ -23,4 +30,6 @@ def get_env_vars_for_service(
 ) -> set[tuple[str | Any, str | Any] | Any]:
     """Get env vars for service path."""
     service = load_service_config(service_path)
-    return set(chain(*(get_all_env_vars(i) for i in service.overrides)))
+    return set(
+        chain(RESOURCE_ENV_VARS, *(get_all_env_vars(i) for i in service.overrides))
+    )
