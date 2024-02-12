@@ -415,8 +415,49 @@ class PropelClient:
 
         agent_data["ingress_enabled"] = ingress_enabled
         agent_data["tendermint_ingress_enabled"] = tendermint_ingress_enabled
-
         return self._agents_create_from_data(agent_data)
+
+    def agents_update(  # pylint: disable=too-many-arguments # noqa
+        self,
+        name_or_id: str,
+        service_ipfs_hash: Optional[str] = None,
+        ingress_enabled: Optional[bool] = None,
+        variables: Optional[List[str]] = None,
+        tendermint_ingress_enabled: Optional[bool] = None,
+    ) -> Dict:
+        """
+        Update agent by agent name or id.
+
+        :param name_or_id:  agent name or id
+        :param service_ipfs_hash: optional service ipfs hash id
+        :param ingress_enabled: option bool
+        :param variables: optional list of strings of varible names or ids
+        :param tendermint_ingress_enabled: optional bool
+        :return: dict
+        """
+        agent_data: Dict[str, Union[List, int, str]] = {}
+
+        if service_ipfs_hash is not None:
+            agent_data["service_ipfs_hash"] = service_ipfs_hash
+
+        if variables:
+            agent_data["variables"] = variables
+
+        if ingress_enabled is not None:
+            agent_data["ingress_enabled"] = ingress_enabled
+
+        if tendermint_ingress_enabled is not None:
+            agent_data["tendermint_ingress_enabled"] = tendermint_ingress_enabled
+
+        if not agent_data:
+            raise ValueError("No values to update!")
+
+        url = self._get_url(self.API_AGENTS_LIST) + f"/{name_or_id}/update_agent/"
+        response = self._http_post(
+            url, json=agent_data, **self._get_credentials_params()
+        )
+        self._check_response(response, codes=[200])
+        return response.json()
 
     def variables_list(self) -> Dict:
         """
