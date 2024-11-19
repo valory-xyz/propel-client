@@ -6,11 +6,12 @@ from typing import Any, Generator
 from aea.helpers.env_vars import ENV_VARIABLE_RE, is_env_variable
 from autonomy.configurations.loader import load_service_config
 
+
 RESOURCE_ENV_VARS = [
-    "AUTONOMY_AGENT_MEMORY_LIMIT",
-    "AUTONOMY_AGENT_CPU_LIMIT",
-    "AUTONOMY_AGENT_MEMORY_REQUEST",
-    "AUTONOMY_AGENT_CPU_REQUEST",
+    ("AUTONOMY_AGENT_MEMORY_LIMIT", 1024),
+    ("AUTONOMY_AGENT_CPU_LIMIT", 1.0),
+    ("AUTONOMY_AGENT_MEMORY_REQUEST", 256),
+    ("AUTONOMY_AGENT_CPU_REQUEST", 1.0),
 ]
 
 
