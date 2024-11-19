@@ -1,5 +1,9 @@
 # Release History - `open-autonomy`
 
+# 0.0.14 (2024-11-19)
+
+* open-autonomy version v0.18.3
+
 # 0.0.1 (2023-07-10)
 
 Initial release:

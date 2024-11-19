@@ -11,11 +11,11 @@ packages = [{ include = "propel_client" }]
 python = ">=3.8,<4.0"
 click = "*"
 requests = "*"
-open-autonomy = "^0.14.3.post1"
+open-autonomy = "==v0.18.3"
 
 
 [tool.poetry.group.dev.dependencies]
-tomte = { version = "0.2.4", extras = [
+tomte = { version = "0.2.17", extras = [
     "black",
     "flake8",
     "isort",
