@@ -417,7 +417,6 @@ def agents_update(  # pylint: disable=too-many-arguments
     print_json(agent)
 
 
-
 @click.command(name="addvar")
 @click.pass_obj
 @click.option("--name", type=str, required=False)
@@ -441,17 +440,17 @@ def agents_addvar(  # pylint: disable=too-many-arguments
     :param tendermint_ingress_enabled: optional bool
     """
     agent = obj.propel_client.agents_get(name)
-    variables_list = [i["id" ]for i in agent["variables"]]
+    variables_list = [i["id"] for i in agent["variables"]]
     variables_list.append(variable_id)
     variables_list = list(set(variables_list))
-    
+
     agent = obj.propel_client.agents_update(
         name_or_id=name,
         variables=variables_list,
     )
     print_json(agent)
-    
-    
+
+
 agents_group.add_command(agents_addvar)
 
 
