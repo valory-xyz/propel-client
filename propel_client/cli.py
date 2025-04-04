@@ -379,16 +379,12 @@ def agents_create(  # pylint: disable=too-many-arguments
 @click.option("--name", type=str, required=False)
 @click.option("--service-ipfs-hash", type=str, required=False)
 @click.option("--variables", type=str, required=False)
-@click.option("--chain-id", type=int, required=False)
-@click.option("--token-id", type=int, required=False)
 @click.option("--ingress-enabled", type=bool, required=False, default=False)
 @click.option("--tendermint-ingress-enabled", type=bool, required=False, default=False)
 def agents_update(  # pylint: disable=too-many-arguments
     obj: ClickAPPObject,
     name: str,
     variables: str,
-    chain_id: int,
-    token_id: int,
     ingress_enabled: bool,
     service_ipfs_hash: str,
     tendermint_ingress_enabled: bool,
@@ -397,11 +393,8 @@ def agents_update(  # pylint: disable=too-many-arguments
     Create agent command.
 
     :param obj: ClickAPPObject
-    :param key: key id
     :param name: optional agent name
     :param service_ipfs_hash: optional service ipfs hash id
-    :param chain_id: optional chain id
-    :param token_id: optional token id
     :param ingress_enabled: option bool
     :param variables: optional str
     :param tendermint_ingress_enabled: optional bool
@@ -430,14 +423,8 @@ def agents_addvar(  # pylint: disable=too-many-arguments
     Create agent command.
 
     :param obj: ClickAPPObject
-    :param key: key id
     :param name: optional agent name
-    :param service_ipfs_hash: optional service ipfs hash id
-    :param chain_id: optional chain id
-    :param token_id: optional token id
-    :param ingress_enabled: option bool
-    :param variables: optional str
-    :param tendermint_ingress_enabled: optional bool
+    :param variable_id: int
     """
     agent = obj.propel_client.agents_get(name)
     variables_list = [i["id"] for i in agent["variables"]]
@@ -496,6 +483,7 @@ def agents_deploy(  # pylint: disable=too-many-arguments
     :param timeout: int
     :param do_restart: bool, restart after deployment
     :param do_delete: bool, delete agents first
+    :param allow_update: bool, delete agents first
     """
     ctx.invoke(seats_ensure)
     if do_delete:
