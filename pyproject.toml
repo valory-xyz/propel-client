@@ -9,7 +9,7 @@ packages = [{ include = "propel_client" }]
 
 [tool.poetry.dependencies]
 python = ">=3.8,<4.0"
-click = "*"
+click = "==8.1.8"
 requests = "*"
 open-autonomy = "==v0.18.3"
 
