@@ -374,6 +374,73 @@ def agents_create(  # pylint: disable=too-many-arguments
     print_json(agent)
 
 
+@click.command(name="update")
+@click.pass_obj
+@click.option("--name", type=str, required=False)
+@click.option("--service-ipfs-hash", type=str, required=False)
+@click.option("--variables", type=str, required=False)
+@click.option("--ingress-enabled", type=bool, required=False, default=False)
+@click.option("--tendermint-ingress-enabled", type=bool, required=False, default=False)
+def agents_update(  # pylint: disable=too-many-arguments
+    obj: ClickAPPObject,
+    name: str,
+    variables: str,
+    ingress_enabled: bool,
+    service_ipfs_hash: str,
+    tendermint_ingress_enabled: bool,
+) -> None:
+    """
+    Create agent command.
+
+    :param obj: ClickAPPObject
+    :param name: optional agent name
+    :param service_ipfs_hash: optional service ipfs hash id
+    :param ingress_enabled: option bool
+    :param variables: optional str
+    :param tendermint_ingress_enabled: optional bool
+    """
+    variables_list = variables.split(",") or None if variables else []
+    agent = obj.propel_client.agents_update(
+        name_or_id=name,
+        service_ipfs_hash=service_ipfs_hash,
+        ingress_enabled=ingress_enabled,
+        variables=variables_list,
+        tendermint_ingress_enabled=tendermint_ingress_enabled,
+    )
+    print_json(agent)
+
+
+@click.command(name="addvar")
+@click.pass_obj
+@click.option("--name", type=str, required=False)
+@click.option("--variable-id", type=int, required=False)
+def agents_addvar(  # pylint: disable=too-many-arguments
+    obj: ClickAPPObject,
+    name: str,
+    variable_id: int,
+) -> None:
+    """
+    Create agent command.
+
+    :param obj: ClickAPPObject
+    :param name: optional agent name
+    :param variable_id: int
+    """
+    agent = obj.propel_client.agents_get(name)
+    variables_list = [i["id"] for i in agent["variables"]]
+    variables_list.append(variable_id)
+    variables_list = list(set(variables_list))
+
+    agent = obj.propel_client.agents_update(
+        name_or_id=name,
+        variables=variables_list,
+    )
+    print_json(agent)
+
+
+agents_group.add_command(agents_addvar)
+
+
 @click.command(name="deploy")
 @click.pass_context
 @click.option("--key", type=int, required=True)
@@ -384,6 +451,7 @@ def agents_create(  # pylint: disable=too-many-arguments
 @click.option("--token-id", type=int, required=False)
 @click.option("--ingress-enabled", type=bool, required=False, default=False)
 @click.option("--tendermint-ingress-enabled", type=bool, required=False, default=False)
+@click.option("--allow-update", type=bool, required=False, default=False)
 @click.option("--timeout", type=int, required=False, default=120)
 def agents_deploy(  # pylint: disable=too-many-arguments
     ctx: click.Context,
@@ -398,6 +466,7 @@ def agents_deploy(  # pylint: disable=too-many-arguments
     timeout: int,
     do_restart: bool = True,
     do_delete: bool = True,
+    allow_update: bool = False,
 ) -> None:
     """
     Deploy agent command.
@@ -414,26 +483,52 @@ def agents_deploy(  # pylint: disable=too-many-arguments
     :param timeout: int
     :param do_restart: bool, restart after deployment
     :param do_delete: bool, delete agents first
+    :param allow_update: bool, delete agents first
     """
     ctx.invoke(seats_ensure)
     if do_delete:
         click.echo(f"[Agent: {name}] ensure agent deleted")
         ctx.invoke(agents_ensure_deleted, name_or_id=name)
         click.echo(f"[Agent: {name}] agent deleted")
-    click.echo(f"[Agent: {name}] create agent")
-    ctx.invoke(
-        agents_create,
-        key=key,
-        name=name,
-        variables=variables,
-        chain_id=chain_id,
-        token_id=token_id,
-        ingress_enabled=ingress_enabled,
-        service_ipfs_hash=service_ipfs_hash,
-        tendermint_ingress_enabled=tendermint_ingress_enabled,
-    )
-    ctx.invoke(agents_wait, name_or_id=name, state="DEPLOYED", timeout=timeout)
-    click.echo(f"[Agent: {name}] agent deployed")
+
+    agent = None
+    if allow_update:
+        try:
+            agent = ctx.obj.propel_client.agents_get(name)
+        except HttpRequestError as e:
+            if e.code == 404:
+                agent = None
+            else:
+                raise
+
+    if agent:
+        # update some
+        click.echo(f"[Agent: {name}] updating")
+        ctx.invoke(
+            agents_update,
+            name=name,
+            variables=variables,
+            ingress_enabled=ingress_enabled,
+            service_ipfs_hash=service_ipfs_hash,
+            tendermint_ingress_enabled=tendermint_ingress_enabled,
+        )
+        click.echo(f"[Agent: {name}] updated")
+    else:
+        # create new
+        click.echo(f"[Agent: {name}] create agent")
+        ctx.invoke(
+            agents_create,
+            key=key,
+            name=name,
+            variables=variables,
+            chain_id=chain_id,
+            token_id=token_id,
+            ingress_enabled=ingress_enabled,
+            service_ipfs_hash=service_ipfs_hash,
+            tendermint_ingress_enabled=tendermint_ingress_enabled,
+        )
+        ctx.invoke(agents_wait, name_or_id=name, state="DEPLOYED", timeout=timeout)
+        click.echo(f"[Agent: {name}] agent deployed")
     if do_restart:
         _restart_and_wait(ctx, name_or_id=name, timeout=timeout)
 
@@ -735,6 +830,8 @@ def service_group(obj: ClickAPPObject) -> None:
 @click.option("--tendermint-ingress-enabled", type=bool, required=False, default=False)
 @click.option("--timeout", type=int, required=False, default=120)
 @click.option("--show-variable-value", type=bool, required=False, default=False)
+@click.option("--delete-agents", type=bool, required=False, default=True)
+@click.option("--restart-agents", type=bool, required=False, default=True)
 def service_deploy(  # pylint: disable=too-many-arguments,too-many-locals
     ctx: click.Context,
     keys: str,
@@ -747,6 +844,8 @@ def service_deploy(  # pylint: disable=too-many-arguments,too-many-locals
     timeout: int,
     service_dir: str,
     show_variable_value: bool,
+    delete_agents: bool = True,
+    restart_agents: bool = True,
 ) -> None:
     """Deploy service with keys ids and variables from service file and env variables."""
     keys_list = list(map(int, keys.split(",")))
@@ -770,7 +869,7 @@ def service_deploy(  # pylint: disable=too-many-arguments,too-many-locals
         idx: int, key_id: int, executor: ThreadPoolExecutor
     ) -> tuple[Future[Any], str]:
         agent_name = f"{name}_agent_{idx}"
-        click.echo(f"[Agent: {agent_name}] Deploying with keey id {key_id}")
+        click.echo(f"[Agent: {agent_name}] Deploying with key id {key_id}")
         f = executor.submit(
             ctx.invoke,
             agents_deploy,
@@ -785,6 +884,7 @@ def service_deploy(  # pylint: disable=too-many-arguments,too-many-locals
             timeout=timeout,
             do_restart=False,
             do_delete=False,
+            allow_update=not delete_agents,
         )
         return f, agent_name
 
@@ -814,10 +914,45 @@ def service_deploy(  # pylint: disable=too-many-arguments,too-many-locals
         )
         return f, agent_name
 
-    _run_agents_command(keys_list, _delete)
-    click.echo("All agents deleted")
+    if delete_agents:
+        _run_agents_command(keys_list, _delete)
+        click.echo("All agents deleted")
     _run_agents_command(keys_list, _deploy)
     click.echo("All agents deployed")
+
+    if restart_agents:
+        _run_agents_command(keys_list, _restart)
+        click.echo("All agents restarted")
+    click.echo("Done")
+
+
+@click.command(name="restart")
+@click.pass_context
+@click.option("--name", type=str, required=True)
+@click.option("--num-agents", type=int, required=True)
+@click.option("--timeout", type=int, required=False, default=320)
+def service_restart(  # pylint: disable=too-many-arguments,too-many-locals
+    ctx: click.Context,
+    name: str,
+    num_agents: int,
+    timeout: int,
+) -> None:
+    """Deploy service with keys ids and variables from service file and env variables."""
+    keys_list = list(range(num_agents))
+
+    def _restart(
+        idx: int, _: int, executor: ThreadPoolExecutor
+    ) -> tuple[Future[None], str]:
+        agent_name = f"{name}_agent_{idx}"
+        click.echo(f"[Agent: {agent_name}] restarting")
+        f = executor.submit(
+            _restart_and_wait,
+            ctx,
+            name_or_id=agent_name,
+            timeout=timeout,
+        )
+        return f, agent_name
+
     _run_agents_command(keys_list, _restart)
     click.echo("All agents restarted")
 
@@ -844,5 +979,6 @@ def _run_agents_command(keys_list: List[int], fn: Callable) -> None:
 
 
 service_group.add_command(service_deploy)
+service_group.add_command(service_restart)
 
 cli.add_command(service_group)
