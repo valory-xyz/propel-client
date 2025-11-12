@@ -72,6 +72,14 @@ requests_timeout_option = click.option(
     help="http timeout",
 )
 
+org_id_option = click.option(
+    "--org-id",
+    type=int,
+    required=False,
+    default=None,
+    help="Organization ID for accessing organization resources",
+)
+
 
 @dataclass()
 class ClickAPPObject:
@@ -79,6 +87,7 @@ class ClickAPPObject:
 
     storage: CredentialStorage
     propel_client: PropelClient
+    org_id: Optional[int] = None
 
     def logout(self) -> None:
         """Perform logout."""
@@ -111,12 +120,14 @@ class ClickAPPObject:
 @http_retries_option
 @requests_timeout_option
 @backoff_factor_option
+@org_id_option
 def cli(
     ctx: click.Context,
     url: str,
     http_retries: int,
     backoff_factor: float,
     http_timeout: float,
+    org_id: Optional[int],
 ) -> None:
     """
     Group commands.
@@ -126,8 +137,10 @@ def cli(
     :param http_retries: int num of http request retries
     :param backoff_factor: flost factor for delays  in retries
     :param http_timeout: int request timeout in seconds
+    :param org_id: optional organization ID
     """
     ctx.url = url  # type: ignore
+    ctx.org_id = org_id  # type: ignore
     storage = CredentialStorage()
     propel_client = PropelClient(
         url,
@@ -136,7 +149,7 @@ def cli(
         backoff_factor=backoff_factor,
         timeout=http_timeout,
     )
-    ctx.obj = ClickAPPObject(storage=storage, propel_client=propel_client)
+    ctx.obj = ClickAPPObject(storage=storage, propel_client=propel_client, org_id=org_id)
 
 
 def no_credentials_error(func: Callable) -> Callable:
@@ -252,7 +265,7 @@ def keys_list_command(obj: ClickAPPObject) -> None:
 
     :param obj: ClickAPPObject
     """
-    keys = obj.propel_client.keys_list()
+    keys = obj.propel_client.keys_list(org_id=obj.org_id)
     print_json(keys)
 
 
@@ -264,7 +277,7 @@ def keys_create(obj: ClickAPPObject) -> None:
 
     :param obj: ClickAPPObject
     """
-    keys = obj.propel_client.keys_create()
+    keys = obj.propel_client.keys_create(org_id=obj.org_id)
     print_json(keys)
 
 
@@ -292,7 +305,7 @@ def seats_ensure(obj: ClickAPPObject) -> None:
 
     :param obj: ClickAPPObject
     """
-    seats = obj.propel_client.get_seats()
+    seats = obj.propel_client.get_seats(org_id=obj.org_id)
     if seats["n_available"] < 1:
         raise click.ClickException("No seats")
 
@@ -322,7 +335,7 @@ def agents_list(obj: ClickAPPObject) -> None:
 
     :param obj: ClickAPPObject
     """
-    agents = obj.propel_client.agents_list()
+    agents = obj.propel_client.agents_list(org_id=obj.org_id)
     print_json(agents)
 
 
@@ -370,6 +383,7 @@ def agents_create(  # pylint: disable=too-many-arguments
         ingress_enabled=ingress_enabled,
         variables=variables_list,
         tendermint_ingress_enabled=tendermint_ingress_enabled,
+        org_id=obj.org_id,
     )
     print_json(agent)
 
@@ -406,6 +420,7 @@ def agents_update(  # pylint: disable=too-many-arguments
         ingress_enabled=ingress_enabled,
         variables=variables_list,
         tendermint_ingress_enabled=tendermint_ingress_enabled,
+        org_id=obj.org_id,
     )
     print_json(agent)
 
@@ -426,7 +441,7 @@ def agents_addvar(  # pylint: disable=too-many-arguments
     :param name: optional agent name
     :param variable_id: int
     """
-    agent = obj.propel_client.agents_get(name)
+    agent = obj.propel_client.agents_get(name, org_id=obj.org_id)
     variables_list = [i["id"] for i in agent["variables"]]
     variables_list.append(variable_id)
     variables_list = list(set(variables_list))
@@ -434,6 +449,7 @@ def agents_addvar(  # pylint: disable=too-many-arguments
     agent = obj.propel_client.agents_update(
         name_or_id=name,
         variables=variables_list,
+        org_id=obj.org_id,
     )
     print_json(agent)
 
@@ -494,7 +510,7 @@ def agents_deploy(  # pylint: disable=too-many-arguments
     agent = None
     if allow_update:
         try:
-            agent = ctx.obj.propel_client.agents_get(name)
+            agent = ctx.obj.propel_client.agents_get(name, org_id=ctx.obj.org_id)
         except HttpRequestError as e:
             if e.code == 404:
                 agent = None
@@ -551,11 +567,10 @@ def agents_get(obj: ClickAPPObject, name_or_id: str) -> None:
     """
     Get agent command.
 
-    :param name_or_id: str
-
     :param obj: ClickAPPObject
+    :param name_or_id: str
     """
-    agent = obj.propel_client.agents_get(name_or_id)
+    agent = obj.propel_client.agents_get(name_or_id, org_id=obj.org_id)
     print_json(agent)
 
 
@@ -579,7 +594,7 @@ def agents_wait(
     """
     try:
         for cur_state in obj.propel_client.agents_wait_for_state_iter(
-            agent_name_or_id=name_or_id, state=state, timeout=timeout, period=period
+            agent_name_or_id=name_or_id, state=state, timeout=timeout, period=period, org_id=obj.org_id
         ):
             click.echo(
                 f"[Agent: {name_or_id}] state: {cur_state}, waiting for {state} for next {period} seconds"
@@ -603,18 +618,18 @@ def agents_ensure_deleted(obj: ClickAPPObject, name_or_id: str, timeout: int) ->
 
     :param obj: ClickAPPObject
     """
-    if _is_deleted(obj.propel_client, name_or_id):
+    if _is_deleted(obj.propel_client, name_or_id, org_id=obj.org_id):
         click.echo(f"[Agent: {name_or_id}] already deleted")
         return
 
-    obj.propel_client.agents_stop(name_or_id)
+    obj.propel_client.agents_stop(name_or_id, org_id=obj.org_id)
     # TODO: add state constants! # pylint: disable=fixme
     started = time.time()
-    obj.propel_client.agents_wait_for_state(name_or_id, "DEPLOYED", timeout=timeout)
+    obj.propel_client.agents_wait_for_state(name_or_id, "DEPLOYED", timeout=timeout, org_id=obj.org_id)
 
-    obj.propel_client.agents_delete(name_or_id)
+    obj.propel_client.agents_delete(name_or_id, org_id=obj.org_id)
     while 1:
-        if _is_deleted(obj.propel_client, name_or_id):
+        if _is_deleted(obj.propel_client, name_or_id, org_id=obj.org_id):
             break
 
         if (time.time() - started) < timeout:
@@ -626,17 +641,18 @@ def agents_ensure_deleted(obj: ClickAPPObject, name_or_id: str, timeout: int) ->
     click.echo(f"[Agent: {name_or_id}] Agent was deleted")
 
 
-def _is_deleted(client: PropelClient, name_or_id: str) -> bool:
+def _is_deleted(client: PropelClient, name_or_id: str, org_id: Optional[int] = None) -> bool:
     """
     Check if agent deleted helper.
 
     :param client: PropelClient instance
     :param name_or_id: str
+    :param org_id: optional organization ID
 
     :return: bool
     """
     try:
-        client.agents_get(name_or_id)
+        client.agents_get(name_or_id, org_id=org_id)
         return False
     except HttpRequestError as e:
         if e.code == 404 and e.content == b'{"detail":"Not found."}':
@@ -651,10 +667,10 @@ def agents_restart(obj: ClickAPPObject, name_or_id: str) -> None:
     """
     Restart agent command.
 
-    :param name_or_id: str
     :param obj: ClickAPPObject
+    :param name_or_id: str
     """
-    agent = obj.propel_client.agents_restart(name_or_id)
+    agent = obj.propel_client.agents_restart(name_or_id, org_id=obj.org_id)
     click.echo(f"[Agent: {name_or_id}] restart triggered.")
     print_json(agent)
 
@@ -666,10 +682,10 @@ def agents_stop(obj: ClickAPPObject, name_or_id: str) -> None:
     """
     Stop agent command.
 
-    :param name_or_id: str
     :param obj: ClickAPPObject
+    :param name_or_id: str
     """
-    agent = obj.propel_client.agents_stop(name_or_id)
+    agent = obj.propel_client.agents_stop(name_or_id, org_id=obj.org_id)
     click.echo(f"[Agent: {name_or_id}] stop triggered.")
     print_json(agent)
 
@@ -682,12 +698,12 @@ def agents_variables_add(obj: ClickAPPObject, name_or_id: str, variables: str) -
     """
     Add variables to agent.
 
+    :param obj: ClickAPPObject
     :param name_or_id: str
     :param variables: str
-    :param obj: ClickAPPObject
     """
     variables_list = variables.split(",") or [] if variables else []
-    agent = obj.propel_client.agents_variables_add(name_or_id, variables_list)
+    agent = obj.propel_client.agents_variables_add(name_or_id, variables_list, org_id=obj.org_id)
     click.echo(f"[Agent: {name_or_id}] variables added {variables_list}.")
     print_json(agent)
 
@@ -702,12 +718,12 @@ def agents_variables_remove(
     """
     Remove variables from agent.
 
+    :param obj: ClickAPPObject
     :param name_or_id: str
     :param variables: str
-    :param obj: ClickAPPObject
     """
     variables_list = variables.split(",") or [] if variables else []
-    agent = obj.propel_client.agents_variables_remove(name_or_id, variables_list)
+    agent = obj.propel_client.agents_variables_remove(name_or_id, variables_list, org_id=obj.org_id)
     click.echo(f"[Agent: {name_or_id}] variables removed {variables_list}.")
     print_json(agent)
 
@@ -719,10 +735,10 @@ def agents_delete(obj: ClickAPPObject, name_or_id: str) -> None:
     """
     Delete agent command.
 
-    :param name_or_id: str
     :param obj: ClickAPPObject
+    :param name_or_id: str
     """
-    agent = obj.propel_client.agents_delete(name_or_id)
+    agent = obj.propel_client.agents_delete(name_or_id, org_id=obj.org_id)
     click.echo(f"[Agent: {name_or_id}] delete triggered.")
     print_json(agent)
 
@@ -757,7 +773,7 @@ def variables_list_command(obj: ClickAPPObject) -> None:
 
     :param obj: ClickAPPObject
     """
-    variables = obj.propel_client.variables_list()
+    variables = obj.propel_client.variables_list(org_id=obj.org_id)
     print_json(variables)
 
 
@@ -779,7 +795,7 @@ def variables_create(
     :param value: value
     :param var_type: variable type
     """
-    variable = obj.propel_client.variables_create(name, key, value, var_type)
+    variable = obj.propel_client.variables_create(name, key, value, var_type, org_id=obj.org_id)
     print_json(variable)
 
 
