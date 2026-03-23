@@ -1,11 +1,11 @@
 """Various utils."""
+
 from itertools import chain
 from pathlib import Path
 from typing import Any, Generator
 
 from aea.helpers.env_vars import ENV_VARIABLE_RE, is_env_variable
 from autonomy.configurations.loader import load_service_config
-
 
 RESOURCE_ENV_VARS = [
     ("AUTONOMY_AGENT_MEMORY_LIMIT", 1024),

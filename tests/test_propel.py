@@ -25,7 +25,6 @@ import pytest
 
 from propel_client.propel import HttpRequestError, PropelClient
 
-
 base_url = "http://some/base"
 USERNAME = "user1"
 PASSWORD = "password1"

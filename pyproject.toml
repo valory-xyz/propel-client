@@ -18,7 +18,7 @@ pymultihash = "==0.8.2"
 
 
 [tool.poetry.group.dev.dependencies]
-tomte = { version = "0.2.17", extras = [
+tomte = { version = "0.6.1", extras = [
     "black",
     "flake8",
     "isort",
