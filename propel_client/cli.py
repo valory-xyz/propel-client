@@ -17,6 +17,7 @@
 #
 # ------------------------------------------------------------------------------
 """CLI implementation."""
+
 import concurrent.futures
 import json
 import os
@@ -39,7 +40,6 @@ from propel_client.propel import (
     PropelClient,
 )
 from propel_client.utils import get_env_vars_for_service
-
 
 url_option = click.option(
     "--url",
@@ -149,7 +149,9 @@ def cli(
         backoff_factor=backoff_factor,
         timeout=http_timeout,
     )
-    ctx.obj = ClickAPPObject(storage=storage, propel_client=propel_client, org_id=org_id)
+    ctx.obj = ClickAPPObject(
+        storage=storage, propel_client=propel_client, org_id=org_id
+    )
 
 
 def no_credentials_error(func: Callable) -> Callable:
@@ -594,7 +596,11 @@ def agents_wait(
     """
     try:
         for cur_state in obj.propel_client.agents_wait_for_state_iter(
-            agent_name_or_id=name_or_id, state=state, timeout=timeout, period=period, org_id=obj.org_id
+            agent_name_or_id=name_or_id,
+            state=state,
+            timeout=timeout,
+            period=period,
+            org_id=obj.org_id,
         ):
             click.echo(
                 f"[Agent: {name_or_id}] state: {cur_state}, waiting for {state} for next {period} seconds"
@@ -625,7 +631,9 @@ def agents_ensure_deleted(obj: ClickAPPObject, name_or_id: str, timeout: int) ->
     obj.propel_client.agents_stop(name_or_id, org_id=obj.org_id)
     # TODO: add state constants! # pylint: disable=fixme
     started = time.time()
-    obj.propel_client.agents_wait_for_state(name_or_id, "DEPLOYED", timeout=timeout, org_id=obj.org_id)
+    obj.propel_client.agents_wait_for_state(
+        name_or_id, "DEPLOYED", timeout=timeout, org_id=obj.org_id
+    )
 
     obj.propel_client.agents_delete(name_or_id, org_id=obj.org_id)
     while 1:
@@ -641,7 +649,9 @@ def agents_ensure_deleted(obj: ClickAPPObject, name_or_id: str, timeout: int) ->
     click.echo(f"[Agent: {name_or_id}] Agent was deleted")
 
 
-def _is_deleted(client: PropelClient, name_or_id: str, org_id: Optional[int] = None) -> bool:
+def _is_deleted(
+    client: PropelClient, name_or_id: str, org_id: Optional[int] = None
+) -> bool:
     """
     Check if agent deleted helper.
 
@@ -703,7 +713,9 @@ def agents_variables_add(obj: ClickAPPObject, name_or_id: str, variables: str) -
     :param variables: str
     """
     variables_list = variables.split(",") or [] if variables else []
-    agent = obj.propel_client.agents_variables_add(name_or_id, variables_list, org_id=obj.org_id)
+    agent = obj.propel_client.agents_variables_add(
+        name_or_id, variables_list, org_id=obj.org_id
+    )
     click.echo(f"[Agent: {name_or_id}] variables added {variables_list}.")
     print_json(agent)
 
@@ -723,7 +735,9 @@ def agents_variables_remove(
     :param variables: str
     """
     variables_list = variables.split(",") or [] if variables else []
-    agent = obj.propel_client.agents_variables_remove(name_or_id, variables_list, org_id=obj.org_id)
+    agent = obj.propel_client.agents_variables_remove(
+        name_or_id, variables_list, org_id=obj.org_id
+    )
     click.echo(f"[Agent: {name_or_id}] variables removed {variables_list}.")
     print_json(agent)
 
@@ -795,7 +809,9 @@ def variables_create(
     :param value: value
     :param var_type: variable type
     """
-    variable = obj.propel_client.variables_create(name, key, value, var_type, org_id=obj.org_id)
+    variable = obj.propel_client.variables_create(
+        name, key, value, var_type, org_id=obj.org_id
+    )
     print_json(variable)
 
 

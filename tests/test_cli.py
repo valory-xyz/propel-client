@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # ------------------------------------------------------------------------------
 #
-#   Copyright 2023 Valory AG
+#   Copyright 2023-2026 Valory AG
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ from propel_client.propel import LoginError
 
 
 class TestCli:
-    def setup(self):
+    def setup_method(self):
         self.runner = CliRunner()
         self.client_mock = MagicMock()
         self.credentials = {"some": "creads"}

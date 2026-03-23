@@ -21,7 +21,6 @@
 import os
 from pathlib import Path
 
-
 # TODO: nested constants for API2  # pylint: disable=fixme
 
 API_PREFIX = "/api2"

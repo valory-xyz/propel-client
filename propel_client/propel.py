@@ -17,6 +17,7 @@
 #
 # ------------------------------------------------------------------------------
 """Propel client implementation."""
+
 import time
 from typing import Any, Dict, Generator, Iterable, List, Optional, Union
 
@@ -199,8 +200,8 @@ class PropelClient:
         url = self._get_url(self.API_KEYS_LIST)
         params = {}
         if org_id is not None:
-            params['org_id'] = org_id
-        
+            params["org_id"] = org_id
+
         response = self._http_get(url, params=params, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
@@ -215,9 +216,11 @@ class PropelClient:
         url = self._get_url(self.API_KEYS_LIST) + "/"
         data = {}
         if org_id is not None:
-            data['org_id'] = org_id
-        
-        response = self._http_post(url, json=data if data else None, **self._get_credentials_params())
+            data["org_id"] = org_id
+
+        response = self._http_post(
+            url, json=data if data else None, **self._get_credentials_params()
+        )
         self._check_response(response, codes=[201])
         return response.json()
 
@@ -231,8 +234,8 @@ class PropelClient:
         url = self._get_url(self.API_SEATS_LIST)
         params = {}
         if org_id is not None:
-            params['org_id'] = org_id
-        
+            params["org_id"] = org_id
+
         response = self._http_get(url, params=params, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
@@ -247,13 +250,15 @@ class PropelClient:
         url = self._get_url(self.API_AGENTS_LIST)
         params = {}
         if org_id is not None:
-            params['org_id'] = org_id
-        
+            params["org_id"] = org_id
+
         response = self._http_get(url, params=params, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
 
-    def agents_get(self, agent_name_or_id: Union[int, str], org_id: Optional[int] = None) -> Dict:
+    def agents_get(
+        self, agent_name_or_id: Union[int, str], org_id: Optional[int] = None
+    ) -> Dict:
         """
         Get agent by name or id.
 
@@ -265,8 +270,8 @@ class PropelClient:
         url = self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}"
         params = {}
         if org_id is not None:
-            params['org_id'] = org_id
-        
+            params["org_id"] = org_id
+
         response = self._http_get(url, params=params, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
@@ -299,7 +304,9 @@ class PropelClient:
                 else:
                     raise
 
-    def agents_restart(self, agent_name_or_id: Union[int, str], org_id: Optional[int] = None) -> Dict:
+    def agents_restart(
+        self, agent_name_or_id: Union[int, str], org_id: Optional[int] = None
+    ) -> Dict:
         """
         Restart agent by name or id.
 
@@ -311,13 +318,15 @@ class PropelClient:
         url = self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}/restart/"
         params = {}
         if org_id is not None:
-            params['org_id'] = org_id
-        
+            params["org_id"] = org_id
+
         response = self._http_get(url, params=params, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
 
-    def agents_stop(self, agent_name_or_id: Union[int, str], org_id: Optional[int] = None) -> Dict:
+    def agents_stop(
+        self, agent_name_or_id: Union[int, str], org_id: Optional[int] = None
+    ) -> Dict:
         """
         Stop agent by name or id.
 
@@ -329,14 +338,17 @@ class PropelClient:
         url = self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}/stop/"
         params = {}
         if org_id is not None:
-            params['org_id'] = org_id
-        
+            params["org_id"] = org_id
+
         response = self._http_get(url, params=params, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
 
     def agents_variables_add(
-        self, agent_name_or_id: Union[int, str], variables: List[str], org_id: Optional[int] = None
+        self,
+        agent_name_or_id: Union[int, str],
+        variables: List[str],
+        org_id: Optional[int] = None,
     ) -> Dict:
         """
         Add variables to agent.
@@ -350,10 +362,10 @@ class PropelClient:
         url = (
             self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}/variables_add/"
         )
-        data = {"variables": variables}
+        data: Dict[str, Any] = {"variables": variables}
         if org_id is not None:
-            data['org_id'] = org_id
-        
+            data["org_id"] = org_id
+
         response = self._http_post(
             url,
             json=data,
@@ -364,7 +376,10 @@ class PropelClient:
         return response.json()
 
     def agents_variables_remove(
-        self, agent_name_or_id: Union[int, str], variables: List[str], org_id: Optional[int] = None
+        self,
+        agent_name_or_id: Union[int, str],
+        variables: List[str],
+        org_id: Optional[int] = None,
     ) -> Dict:
         """
         Remove variables from agent.
@@ -379,17 +394,17 @@ class PropelClient:
             self._get_url(self.API_AGENTS_LIST)
             + f"/{agent_name_or_id}/variables_remove/"
         )
-        data = {"variables": variables}
+        data: Dict[str, Any] = {"variables": variables}
         if org_id is not None:
-            data['org_id'] = org_id
+            data["org_id"] = org_id
 
-        response = self._http_post(
-            url, **self._get_credentials_params(), json=data
-        )
+        response = self._http_post(url, **self._get_credentials_params(), json=data)
         self._check_response(response)
         return response.json()
 
-    def agents_delete(self, agent_name_or_id: Union[int, str], org_id: Optional[int] = None) -> Dict:
+    def agents_delete(
+        self, agent_name_or_id: Union[int, str], org_id: Optional[int] = None
+    ) -> Dict:
         """
         Delete agent by name or id.
 
@@ -401,8 +416,8 @@ class PropelClient:
         url = self._get_url(self.API_AGENTS_LIST) + f"/{agent_name_or_id}/delete"
         params = {}
         if org_id is not None:
-            params['org_id'] = org_id
-        
+            params["org_id"] = org_id
+
         response = self._http_get(url, params=params, **self._get_credentials_params())
         self._check_response(response)
         return response.json()
@@ -528,14 +543,19 @@ class PropelClient:
         url = self._get_url(self.API_VARIABLES_LIST) + "/"
         params = {}
         if org_id is not None:
-            params['org_id'] = org_id
-        
+            params["org_id"] = org_id
+
         response = self._http_get(url, params=params, **self._get_credentials_params())
         self._check_response(response, codes=[200])
         return response.json()
 
     def variables_create(
-        self, name: str, key: str, value: str, type_: str = "str", org_id: Optional[int] = None
+        self,
+        name: str,
+        key: str,
+        value: str,
+        type_: str = "str",
+        org_id: Optional[int] = None,
     ) -> Dict:
         """
         Create variable.
@@ -548,7 +568,7 @@ class PropelClient:
         :return: dict
         """
         url = self._get_url(self.API_VARIABLES_LIST) + "/"
-        variable_data = {
+        variable_data: Dict[str, Any] = {
             "name": name,
             "key": key,
             "masked_value": value,
@@ -556,7 +576,7 @@ class PropelClient:
         }
         if org_id is not None:
             variable_data["org_id"] = org_id
-        
+
         response = self._http_post(
             url, json=variable_data, **self._get_credentials_params()
         )
@@ -585,7 +605,9 @@ class PropelClient:
         start = time.time()
         while time.time() - start < timeout:
             try:
-                agent_data = self.agents_get(agent_name_or_id=agent_name_or_id, org_id=org_id)
+                agent_data = self.agents_get(
+                    agent_name_or_id=agent_name_or_id, org_id=org_id
+                )
                 if agent_data["agent_state"] == state:
                     return True
                 time.sleep(period)
@@ -618,10 +640,12 @@ class PropelClient:
         start = time.time()
         while time.time() - start < timeout:
             try:
-                agent_data = self.agents_get(agent_name_or_id=agent_name_or_id, org_id=org_id)
+                agent_data = self.agents_get(
+                    agent_name_or_id=agent_name_or_id, org_id=org_id
+                )
                 yield agent_data["agent_state"]
                 if agent_data["agent_state"] == state:
-                    return True
+                    return
             except requests.exceptions.ConnectionError:
                 pass
             time.sleep(period)
