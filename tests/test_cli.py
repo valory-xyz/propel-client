@@ -29,7 +29,7 @@ from propel_client.propel import LoginError
 
 
 class TestCli:
-    def setup(self):
+    def setup_method(self):
         self.runner = CliRunner()
         self.client_mock = MagicMock()
         self.credentials = {"some": "creads"}
