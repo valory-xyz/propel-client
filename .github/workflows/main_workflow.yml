@@ -185,3 +185,20 @@ jobs:
         name: Unit tests on windows-latest
         run: |
           tox -e py${{ matrix.python-version }}-win
+
+  all_checks_passed:
+    name: All checks passed
+    if: always()
+    needs:
+      - lock_check
+      - copyright
+      - linter_checks
+      - scan
+      - test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any dependency failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
+      - name: Success
+        run: echo "All required checks passed"
