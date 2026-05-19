@@ -1,0 +1,5 @@
+security:
+  ignore-cvss-severity-below: 0
+  ignore-cvss-unknown-severity: False
+  ignore-vulnerabilities: {}
+  continue-on-vulnerability-error: False
