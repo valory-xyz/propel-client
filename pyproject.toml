@@ -8,10 +8,10 @@ packages = [{ include = "propel_client" }]
 
 
 [tool.poetry.dependencies]
-python = ">=3.10,<4.0"
+python = ">=3.10,<3.15"
 click = ">=8.1.0,<9"
 requests = "*"
-open-autonomy = "==0.21.14"
+open-autonomy = "==0.21.22"
 multiaddr = "==0.0.9"
 pymultihash = "==0.8.2"
 

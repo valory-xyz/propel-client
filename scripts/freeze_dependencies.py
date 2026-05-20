@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # ------------------------------------------------------------------------------
 #
-#   Copyright 2023 Valory AG
+#   Copyright 2023-2026 Valory AG
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -43,6 +43,14 @@ if __name__ == "__main__":
     # remove 'open-autonomy' itself
     regex = re.compile("^open-autonomy(==.*| .*)?$", re.MULTILINE)
     requirements = re.sub(regex, "", requirements)
+
+    # `pip freeze` emits the dist name with dots; liccheck's pkg_resources
+    # resolver normalizes it differently from importlib.metadata and raises
+    # DistributionNotFound. Drop the line — license is PSF-2.0 (already allowed).
+    regex_backport = re.compile(
+        r"^backports[.-]asyncio[.-]runner(==.*| .*)?$", re.MULTILINE
+    )
+    requirements = re.sub(regex_backport, "", requirements)
     if arguments.output is None:
         print(requirements)
     else:
