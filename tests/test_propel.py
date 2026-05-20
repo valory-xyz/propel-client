@@ -62,8 +62,9 @@ def test_logout() -> None:
     """Test PropelClient.logout."""
     propel = _get_client()
 
-    with patch("requests.get", return_value=MagicMock(status_code=500)), pytest.raises(
-        HttpRequestError, match="Bad status code: 500"
+    with (
+        patch("requests.get", return_value=MagicMock(status_code=500)),
+        pytest.raises(HttpRequestError, match="Bad status code: 500"),
     ):
         propel.logout()
 
@@ -76,8 +77,9 @@ def test_call() -> None:
     """Test PropelClient.call."""
     propel = _get_client()
 
-    with patch("requests.post", return_value=MagicMock(status_code=500)), pytest.raises(
-        HttpRequestError, match="Bad status code: 500"
+    with (
+        patch("requests.post", return_value=MagicMock(status_code=500)),
+        pytest.raises(HttpRequestError, match="Bad status code: 500"),
     ):
         propel.openai(path="/test", payload={"1": 2})
 
