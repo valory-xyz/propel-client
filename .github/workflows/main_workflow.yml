@@ -153,8 +153,6 @@ jobs:
 
       - if: matrix.os == 'windows-2025'
         name: Install dependencies (windows-2025)
-        env:
-          ACTIONS_ALLOW_UNSECURE_COMMANDS: true
         run: |
           python -m pip install -U pip
           choco install wget -y

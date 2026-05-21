@@ -10,7 +10,7 @@ resolution-markers = [
 ]
 
 [options]
-prerelease-mode = "allow"
+prerelease-mode = "if-necessary"
 
 [[package]]
 name = "aiohappyeyeballs"

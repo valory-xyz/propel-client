@@ -30,7 +30,11 @@ dev = [
 
 [tool.uv]
 default-groups = "all"
-prerelease = "allow"
+# `if-necessary`, not blanket `allow`: only resolve a prerelease when no
+# stable version satisfies the constraint. Today this affects only httpx
+# (1.0.dev3, pulled in via solana << anchorpy << open-aea-ledger-solana).
+# Stops future transitive deps from silently pulling in dev builds.
+prerelease = "if-necessary"
 
 [tool.tomte]
 # No packages/ dir — propel-client is a pure-Python library. Pointed at
