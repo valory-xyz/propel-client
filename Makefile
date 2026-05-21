@@ -1,10 +1,5 @@
-OPEN_AEA_REPO_PATH := "${OPEN_AEA_REPO_PATH}"
-DEPLOYMENT_TYPE := "${DEPLOYMENT_TYPE}"
-SERVICE_ID := "${SERVICE_ID}"
-PLATFORM_STR := $(shell uname)
-
 .PHONY: clean
-clean: clean-test clean-build clean-pyc clean-docs
+clean: clean-build clean-pyc clean-test clean-docs
 
 .PHONY: clean-build
 clean-build:
@@ -37,36 +32,22 @@ clean-test: clean-cache
 	rm -fr htmlcov/
 	find . -name 'log.txt' -exec rm -fr {} +
 	find . -name 'log.*.txt' -exec rm -fr {} +
+	rm -rf leak_report
 
-# removes various cache files
 .PHONY: clean-cache
 clean-cache:
 	rm -fr .hypothesis/
 	rm -fr .pytest_cache
 	rm -fr .mypy_cache/
 
-# isort: fix import orders
-# black: format files according to the pep standards
-.PHONY: formatters
-formatters:
-	tox -e isort
-	tox -e black
+.PHONY: format
+format:
+	tomte format-code
 
-# black-check: check code style
-# isort-check: check for import order
-# flake8: wrapper around various code checks, https://flake8.pycqa.org/en/latest/user/error-codes.html
-# mypy: static type checker
-# pylint: code analysis for code smells and refactoring suggestions
-# vulture: finds dead code
-# darglint: docstring linter
 .PHONY: code-checks
 code-checks:
-	tox -p -e black-check -e isort-check -e flake8 -e mypy -e pylint -e vulture -e darglint
+	tomte check-code
 
-# safety: checks dependencies for known security vulnerabilities
-# bandit: security linter
 .PHONY: security
 security:
-	tox -p -e safety -e bandit
-	gitleaks detect --report-format json --report-path leak_report
-
+	tomte check-security

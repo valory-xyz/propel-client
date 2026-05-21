@@ -18,8 +18,6 @@ dependencies = [
     "click>=8.1.0,<9",
     "requests",
     "open-autonomy==0.21.22",
-    "multiaddr==0.0.9",
-    "pymultihash==0.8.2",
 ]
 
 [project.scripts]
@@ -27,11 +25,37 @@ propel = "propel_client:cli.cli"
 
 [dependency-groups]
 dev = [
-    "tomte[black, flake8, isort, mypy, pylint]==0.6.1",
-    "types-requests",
-    "tox>=3.0,<4",
-    "pytest",
-    "pytest-coverage>=0.0,<0.1",
+    "tomte[cli, tests]==0.7.0",
+]
+
+[tool.uv]
+default-groups = "all"
+# `if-necessary`, not blanket `allow`: only resolve a prerelease when no
+# stable version satisfies the constraint. Today this affects only httpx
+# (1.0.dev3, pulled in via solana << anchorpy << open-aea-ledger-solana).
+# Stops future transitive deps from silently pulling in dev builds.
+prerelease = "if-necessary"
+
+[tool.tomte]
+# No packages/ dir — propel-client is a pure-Python library. Pointed at
+# the source tree so tomte's canonical setenv injects a real path, even
+# though no AEA-specific testenv (check-packages, check-abci, ...) is
+# consumed here.
+packages_paths = "propel_client"
+service_specific_packages = ["propel_client"]
+pytest_targets = ["tests"]
+open_autonomy_version = "0.21.22"
+open_aea_version = "2.2.6"
+tomte_dep_pin = "==0.7.0"
+pylint_disables = [
+    "too-many-positional-arguments",
+    "too-many-arguments",
+    "too-many-lines",
+    # C0411: tomte canonical isort.cfg pins known_first_party=autonomy, so
+    # isort orders propel_client.* as third-party while pylint's
+    # is_local_module heuristic treats it as first-party. Same pattern
+    # mech-client carries.
+    "C0411",
 ]
 
 [tool.uv.build-backend]

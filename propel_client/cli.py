@@ -30,7 +30,6 @@ from sys import stdin
 from typing import Any, Callable, Dict, List, Optional
 
 import click  # type: ignore
-
 from propel_client.constants import PROPEL_SERVICE_BASE_URL, VAR_TYPES
 from propel_client.cred_storage import CredentialStorage
 from propel_client.propel import (
