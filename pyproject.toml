@@ -34,9 +34,6 @@ dev = [
     "pytest-coverage>=0.0,<0.1",
 ]
 
-[tool.uv]
-default-groups = "all"
-
 [tool.uv.build-backend]
 module-name = ["propel_client"]
 module-root = ""
