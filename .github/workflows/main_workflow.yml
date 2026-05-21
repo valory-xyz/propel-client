@@ -24,11 +24,13 @@ jobs:
     - uses: actions/setup-python@master
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Poetry lock
-      run: |
-        pip install poetry
-        poetry lock
-        poetry install
+    - uses: astral-sh/setup-uv@v6
+      with:
+        version: "0.11.15"
+    - name: Check if dependencies can be locked
+      run: uv lock --check
+    - name: Install dependencies
+      run: uv sync --all-groups -v
   copyright:
     continue-on-error: False
     runs-on: ${{ matrix.os }}
@@ -52,7 +54,7 @@ jobs:
         sudo apt-get update --fix-missing
         sudo apt-get autoremove
         sudo apt-get autoclean
-        pip install tomte[tox]==0.6.1
+        pip install tomte[tox]==0.6.1 tox-uv
         pip install --user --upgrade setuptools
     - name: Check copyright headers
       run: tox -e check-copyright
@@ -80,7 +82,7 @@ jobs:
         sudo apt-get update --fix-missing
         sudo apt-get autoremove
         sudo apt-get autoclean
-        pip install tomte[tox]==0.6.1
+        pip install tomte[tox]==0.6.1 tox-uv
         pip install --user --upgrade setuptools
     - name: Security checks
       run: |
@@ -146,7 +148,7 @@ jobs:
           sudo apt-get update --fix-missing
           sudo apt-get autoremove
           sudo apt-get autoclean
-          pip install tomte[tox]==0.6.1
+          pip install tomte[tox]==0.6.1 tox-uv
           pip install --user --upgrade setuptools
 
       - if: matrix.os == 'ubuntu-latest'
@@ -157,7 +159,7 @@ jobs:
       - if: matrix.os == 'macos-latest'
         name: Install dependencies (macos-latest)
         run: |
-          pip install tomte[tox]==0.6.1
+          pip install tomte[tox]==0.6.1 tox-uv
           brew install gcc
           # brew install protobuf
           # brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/72457f0166d5619a83f508f2345b22d0617b5021/Formula/protobuf.rb
@@ -179,7 +181,7 @@ jobs:
           choco install make -y
           # to check make was installed
           make --version
-          pip install tomte[tox]==0.6.1
+          pip install tomte[tox]==0.6.1 tox-uv
 
       - if: matrix.os == 'windows-latest'
         name: Unit tests on windows-latest

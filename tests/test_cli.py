@@ -41,9 +41,12 @@ class TestCli:
         self.storage_mock.load = MagicMock()
 
     def run_cli(self, *args, **kwargs):
-        with patch(
-            "propel_client.cli.PropelClient", return_value=self.client_mock
-        ), patch("propel_client.cli.CredentialStorage", return_value=self.storage_mock):
+        with (
+            patch("propel_client.cli.PropelClient", return_value=self.client_mock),
+            patch(
+                "propel_client.cli.CredentialStorage", return_value=self.storage_mock
+            ),
+        ):
             result = self.runner.invoke(cli, args, **kwargs)
         return result
 
