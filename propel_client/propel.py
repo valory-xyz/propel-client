@@ -22,10 +22,9 @@ import time
 from typing import Any, Dict, Generator, Iterable, List, Optional, Union
 
 import requests
-from requests import Response
-
 from propel_client import constants
 from propel_client.cred_storage import CredentialStorage
+from requests import Response
 
 
 class BaseClientError(Exception):
@@ -283,10 +282,10 @@ class PropelClient:
                 return requests.get(*args, **kwargs, timeout=self._timeout)
             except Exception as e:  # pylint: disable=broad-except
                 print(
-                    f"Failed to perform get request: {args}: attempt {i+1} exception {e}"
+                    f"Failed to perform get request: {args}: attempt {i + 1} exception {e}"
                 )
                 if i < self._retries - 1:
-                    time.sleep(self._backoff_factor * (2**i))
+                    time.sleep(self._backoff_factor * (2**i))  # noqa: E226
                 else:
                     raise
 
@@ -297,10 +296,10 @@ class PropelClient:
                 return requests.post(*args, **kwargs, timeout=self._timeout)
             except Exception as e:  # pylint: disable=broad-except
                 print(
-                    f"Failed to perform post request: {args}: attempt {i+1} exception {e}"
+                    f"Failed to perform post request: {args}: attempt {i + 1} exception {e}"
                 )
                 if i < self._retries - 1:
-                    time.sleep(self._backoff_factor * (2**i))
+                    time.sleep(self._backoff_factor * (2**i))  # noqa: E226
                 else:
                     raise
 

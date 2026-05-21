@@ -51,6 +51,11 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 
+# tomte tox wrapper renders these in the repo root at runtime
+.tomte-tox.ini
+.tomte-gitleaks-merged.toml
+leak_report
+
 # Translations
 *.mo
 *.pot

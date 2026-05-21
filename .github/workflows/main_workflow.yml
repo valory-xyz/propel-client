@@ -6,6 +6,12 @@ on:
       - main
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   lock_check:
@@ -14,52 +20,51 @@ jobs:
 
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: ["3.10.9"]
+        os: [ubuntu-24.04, macos-15, windows-2025]
+        python-version: ["3.10"]
+
+    defaults:
+      run:
+        shell: bash
 
     timeout-minutes: 18
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@master
-      with:
-        python-version: ${{ matrix.python-version }}
-    - uses: astral-sh/setup-uv@v6
-      with:
-        version: "0.11.15"
-    - name: Check if dependencies can be locked
-      run: uv lock --check
-    - name: Install dependencies
-      run: uv sync --all-groups -v
-  copyright:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+      - name: Check if dependencies can be locked
+        run: uv lock --check
+      - name: Install dependencies
+        run: uv sync --all-groups -v
+
+  copyright_and_dependencies_check:
     continue-on-error: False
     runs-on: ${{ matrix.os }}
 
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        python-version: ["3.10.9"]
+        os: [ubuntu-24.04]
+        python-version: ["3.10"]
 
     timeout-minutes: 30
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - uses: actions/setup-python@master
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run:  |
-        sudo apt-get update --fix-missing
-        sudo apt-get autoremove
-        sudo apt-get autoclean
-        pip install tomte[tox]==0.6.1 tox-uv
-        pip install --user --upgrade setuptools
-    - name: Check copyright headers
-      run: tox -e check-copyright
-    - name: License compatibility check
-      run: tox -e liccheck
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: pip install 'tomte[tox,cli] @ git+https://github.com/valory-xyz/tomte.git@v0.7.0' tox-uv
+      - name: Check copyright headers
+        run: tomte check-copyright --author valory
+      - name: License compatibility check
+        run: tomte tox -e liccheck
 
   linter_checks:
     continue-on-error: False
@@ -67,137 +72,111 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        python-version: ["3.10.9"]
+        os: [ubuntu-24.04]
+        python-version: ["3.10"]
 
     timeout-minutes: 30
 
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@master
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run:  |
-        sudo apt-get update --fix-missing
-        sudo apt-get autoremove
-        sudo apt-get autoclean
-        pip install tomte[tox]==0.6.1 tox-uv
-        pip install --user --upgrade setuptools
-    - name: Security checks
-      run: |
-        tox -e bandit
-        tox -e safety
-    - name: Code style check
-      run: |
-        tox -e black-check
-        tox -e isort-check
-        tox -e flake8
-        tox -e vulture
-        tox -e darglint
-    - name: Static type check
-      run: tox -e mypy
-    - name: Pylint
-      run: tox -e pylint
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: pip install 'tomte[tox,cli] @ git+https://github.com/valory-xyz/tomte.git@v0.7.0' tox-uv
+      - name: Security checks
+        run: tomte tox -p -e safety -e bandit
+      - name: Code checks
+        run: tomte tox -p -e black-check -e isort-check -e flake8 -e mypy -e pylint -e darglint
 
   scan:
     name: gitleaks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-python@v6
         with:
-          go-version: "1.21"
+          python-version: "3.10"
       - run: |
-          wget https://github.com/zricethezav/gitleaks/releases/download/v8.10.1/gitleaks_8.10.1_linux_x64.tar.gz && \
-          tar -xzf gitleaks_8.10.1_linux_x64.tar.gz && \
-          sudo install gitleaks /usr/bin && \
-          gitleaks detect --report-format json --report-path leak_report -v
+          wget https://github.com/zricethezav/gitleaks/releases/download/v8.10.1/gitleaks_8.10.1_linux_x64.tar.gz
+          tar -xzf gitleaks_8.10.1_linux_x64.tar.gz
+          sudo install gitleaks /usr/bin
+          pip install 'tomte[tox,cli] @ git+https://github.com/valory-xyz/tomte.git@v0.7.0' tox-uv
+          tomte tox -e gitleaks
 
   test:
     continue-on-error: True
     needs:
       - lock_check
-      - copyright
+      - copyright_and_dependencies_check
       - linter_checks
     runs-on: ${{ matrix.os }}
 
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: ["3.10.9", "3.11"]
+        os: [ubuntu-24.04, macos-15, windows-2025]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     timeout-minutes: 90
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
           fetch-depth: 0
-      - uses: actions/setup-python@master
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.21"
-      - if: matrix.os == 'ubuntu-latest'
-        name: Install dependencies (ubuntu-latest)
+      - if: matrix.os == 'ubuntu-24.04'
+        name: Install dependencies (ubuntu-24.04)
         run: |
           sudo apt-get update --fix-missing
           sudo apt-get autoremove
           sudo apt-get autoclean
-          pip install tomte[tox]==0.6.1 tox-uv
-          pip install --user --upgrade setuptools
+          pip install 'tomte[tox,cli] @ git+https://github.com/valory-xyz/tomte.git@v0.7.0' tox-uv
 
-      - if: matrix.os == 'ubuntu-latest'
-        name: Unit tests on ubuntu-latest
-        run: |
-          tox -e py${{ matrix.python-version }}-linux
+      - if: matrix.os == 'ubuntu-24.04'
+        name: Unit tests on ubuntu-24.04
+        run: tomte tox -e py${{ matrix.python-version }}-linux
 
-      - if: matrix.os == 'macos-latest'
-        name: Install dependencies (macos-latest)
+      - if: matrix.os == 'macos-15'
+        name: Install dependencies (macos-15)
         run: |
-          pip install tomte[tox]==0.6.1 tox-uv
+          pip install 'tomte[tox,cli] @ git+https://github.com/valory-xyz/tomte.git@v0.7.0' tox-uv
           brew install gcc
-          # brew install protobuf
-          # brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/72457f0166d5619a83f508f2345b22d0617b5021/Formula/protobuf.rb
 
-      - if: matrix.os == 'macos-latest'
-        name: Unit tests on macos-latest
-        run: |
-          tox -e py${{ matrix.python-version }}-darwin
+      - if: matrix.os == 'macos-15'
+        name: Unit tests on macos-15
+        run: tomte tox -e py${{ matrix.python-version }}-darwin
 
-      - if: matrix.os == 'windows-latest'
-        name: Install dependencies (windows-latest)
+      - if: matrix.os == 'windows-2025'
+        name: Install dependencies (windows-2025)
         env:
           ACTIONS_ALLOW_UNSECURE_COMMANDS: true
         run: |
           python -m pip install -U pip
-          echo "::add-path::C:\Program Files (x86)\Windows Kits\10\bin\10.0.18362.0\x64"
           choco install wget -y
           choco install mingw -y
           choco install make -y
-          # to check make was installed
           make --version
-          pip install tomte[tox]==0.6.1 tox-uv
+          pip install 'tomte[tox,cli] @ git+https://github.com/valory-xyz/tomte.git@v0.7.0' tox-uv
 
-      - if: matrix.os == 'windows-latest'
-        name: Unit tests on windows-latest
-        run: |
-          tox -e py${{ matrix.python-version }}-win
+      - if: matrix.os == 'windows-2025'
+        name: Unit tests on windows-2025
+        run: tomte tox -e py${{ matrix.python-version }}-win
 
   all_checks_passed:
     name: All checks passed
     if: always()
     needs:
       - lock_check
-      - copyright
+      - copyright_and_dependencies_check
       - linter_checks
       - scan
       - test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Fail if any dependency failed or was cancelled
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')

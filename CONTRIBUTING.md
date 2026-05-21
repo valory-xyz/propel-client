@@ -1,23 +1,47 @@
-# Contributing
+# Contribution Guide.
 
-Thank you for your interest in contributing to PCLI.
+### Creating A Pull Request
+- **Target branch:** double-check the PR is opened against the correct branch before submitting
+- **Naming convention:** name of the branch should be in kebab case with not more than two or three words. for example `some-feature` or `feat/some-feature`.
+- **Tag relevant ticket/issue:** describe the purpose of the PR properly with relevant ticket/issue. Also attaching a tag such as enhancement/bug/test would help.
+- **Include a sensible description:** descriptions help reviewers to understand the purpose and context of the proposed changes.
+- **Properly comment non-obvious  code** to avoid confusion during the review and enhance maintainability.
+- **Code reviews:** two reviewers will be assigned to a PR.
+- **Linters:** make sure every linter and checks pass before making a commit. Linters help us maintain a coherent codebase with a common code style, proper API documentation and will help you catch most errors before even running your code.
+- **Tests:** the PR needs to contain tests for the newly added code or updated code. (If a commit is made for sole purpose of the review you can add tests later after review is done and PR is ready to merge)
 
-## Getting Started
+Also mention potential effects on other branches/code might have from your changes.
 
-1. Clone the repository
-2. Install dependencies: `pip install .`
-3. Create a new branch for your changes
+For a clean workflow, run checks in the following order before making a PR or pushing the code. Prefix each command with `uv run` (the toolchain lives in the uv-managed venv, not on the system path).
 
-## Submitting Changes
+- tomte format-code
+- tomte check-code
+- make security
 
-- Open an issue to discuss significant changes before starting work
-- Submit a pull request using the [PR template](.github/PULL_REQUEST_TEMPLATE.md)
-- Ensure your changes do not break existing functionality
+**Run this after making a commit**
+- tomte check-copyright --author valory
 
-## Reporting Bugs
 
-Use the [bug report template](.github/ISSUE_TEMPLATE/bug_report.md) to report issues.
+### Documentation (Docstrings and inline comments)
+- Instead of writing just single line of docstring write more informative docstring. If a method is fairly easy to understand one line of docstring will do but if the method has more complex logic it needs be documented properly.
+```python
+def some_method(some_arg: Type) -> ReturnType:
+    """
+    This method does something very complex.
 
-## Security
+    example:
+      >> a = Type("value")
+      >> some_method(a)
+      output
 
-Please review our [security policy](SECURITY.md) before reporting vulnerabilities.
+    :param some_arg: describe argument.
+    :return: value of ReturnType
+
+    optional
+    - types of exceptions it might raise
+    """
+```
+
+### Some more suggestions to help you write better code.
+
+- Always use guard clauses where possible. This leads to more efficient code that has less nesting and is much easier to read.
