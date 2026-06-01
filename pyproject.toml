@@ -17,7 +17,7 @@ classifiers = [
 dependencies = [
     "click>=8.1.0,<9",
     "requests",
-    "open-autonomy==0.21.22",
+    "open-autonomy==0.21.23",
 ]
 
 [project.scripts]
@@ -44,8 +44,8 @@ prerelease = "if-necessary"
 packages_paths = "propel_client"
 service_specific_packages = ["propel_client"]
 pytest_targets = ["tests"]
-open_autonomy_version = "0.21.22"
-open_aea_version = "2.2.6"
+open_autonomy_version = "0.21.23"
+open_aea_version = "2.2.7"
 tomte_dep_pin = "==0.7.0"
 pylint_disables = [
     "too-many-positional-arguments",
