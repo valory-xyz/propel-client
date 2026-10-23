@@ -18,7 +18,7 @@ jobs:
           python-version: ${{ matrix.python-versions }}
       - uses: astral-sh/setup-uv@v6
         with:
-          version: "0.11.15"
+          version: "0.13.4"
 
       - name: Install system prerequisites
         run: |
